@@ -2,6 +2,7 @@
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import AnalysisProgress from "./analysis-progress";
 import styles from "./dashboard.module.css";
 
 export default function NewTopicForm() {
@@ -9,6 +10,11 @@ export default function NewTopicForm() {
   const [keywords, setKeywords] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [analyzing, setAnalyzing] = useState<{
+    id: string;
+    name: string;
+    keywordsLabel: string;
+  } | null>(null);
   const supabase = createClient();
   const router = useRouter();
 
@@ -44,10 +50,36 @@ export default function NewTopicForm() {
         .from("keywords")
         .insert(keywordList.map((term) => ({ topic_id: topic.id, term })));
     }
+
+    setAnalyzing({
+      id: topic.id,
+      name: topic.name,
+      keywordsLabel: keywordList.length > 0 ? keywordList.join(", ") : "Aucun mot-clé",
+    });
+
     setName("");
     setKeywords("");
     setLoading(false);
+
+    supabase.functions.invoke("analyze-topic", {
+      body: { topic_id: topic.id },
+    });
+  }
+
+  function handleAnalysisComplete() {
+    setAnalyzing(null);
     router.refresh();
+  }
+
+  if (analyzing) {
+    return (
+      <AnalysisProgress
+        topicId={analyzing.id}
+        topicName={analyzing.name}
+        keywordsLabel={analyzing.keywordsLabel}
+        onComplete={handleAnalysisComplete}
+      />
+    );
   }
 
   return (
