@@ -63,6 +63,8 @@
   border: 1px solid var(--glass-border);
   background: var(--glass-bg);
   color: var(--ink);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
 }
 
 .btnPrimary {
@@ -158,6 +160,8 @@
   border: 1px solid var(--glass-border);
   border-radius: 16px;
   padding: 24px;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
 }
 
 .icon {
@@ -247,4 +251,169 @@
   justify-content: space-between;
   font-size: 13px;
   color: var(--ink-muted);
+}
+
+/* Accordéon (fonctionnalités) */
+.accordion {
+  border-top: 1px solid var(--glass-border);
+}
+
+.accordionItem {
+  border-bottom: 1px solid var(--glass-border);
+}
+
+.accordionTrigger {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 18px 4px;
+  background: none;
+  border: none;
+  color: var(--ink);
+  font-size: 15px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.accordionIcon {
+  display: flex;
+  color: var(--violet-soft);
+  flex-shrink: 0;
+}
+
+.accordionChevron {
+  color: var(--ink-dim);
+  transition: transform 0.2s ease;
+  flex-shrink: 0;
+}
+
+.accordionContent {
+  padding: 0 4px 18px 44px;
+  font-size: 14px;
+  color: var(--ink-dim);
+}
+
+/* Cartes d'articles */
+.exampleBadge {
+  display: inline-block;
+  font-size: 11px;
+  color: var(--lavender);
+  background: rgba(196, 184, 255, 0.12);
+  border: 1px solid rgba(196, 184, 255, 0.25);
+  padding: 2px 8px;
+  border-radius: 6px;
+  margin-bottom: 16px;
+}
+
+.articleGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+.articleCard {
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: 16px;
+  padding: 20px;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+.liquidCard {
+  position: relative;
+  overflow: hidden;
+}
+
+.liquidCard::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.5), transparent);
+}
+
+.articleMeta {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  color: var(--ink-muted);
+  margin-bottom: 10px;
+}
+
+.articleTitle {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+/* Éditeur de mise en page (admin) */
+.editorToolbar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 12px 0 0;
+}
+
+.editToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 500;
+  border: 1px solid var(--glass-border);
+  background: var(--glass-bg);
+  color: var(--ink);
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.editToggleActive {
+  background: linear-gradient(135deg, var(--violet), #6d5fd0);
+  border: none;
+  color: #ffffff;
+}
+
+.blockControls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  margin-bottom: 8px;
+  border: 1px dashed var(--glass-border);
+  border-radius: 12px;
+  background: rgba(139, 124, 246, 0.06);
+}
+
+.dragHandle {
+  cursor: grab;
+  color: var(--ink-muted);
+  display: flex;
+}
+
+.visToggle {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  color: var(--ink-dim);
+  font-size: 12px;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.blockHidden {
+  opacity: 0.35;
 }
