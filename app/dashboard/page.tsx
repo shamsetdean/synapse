@@ -59,27 +59,44 @@ export default async function DashboardPage() {
     <main className={styles.page}>
       <div className={styles.wrap}>
         <div className={styles.topbar}>
-          <div>
-            <div className={styles.logo}>Synapse</div>
-            <p className={styles.email}>Connecté en tant que {user.email}</p>
+          <div className={styles.topbarLeft}>
+            <svg width="30" height="30" viewBox="0 0 26 26">
+              <line x1="5" y1="5" x2="19" y2="5" stroke="#6d5fd0" strokeWidth="1.6" />
+              <line x1="19" y1="5" x2="5" y2="19" stroke="#6d5fd0" strokeWidth="1.6" />
+              <line x1="5" y1="19" x2="19" y2="19" stroke="#6d5fd0" strokeWidth="1.6" />
+              <circle cx="5" cy="5" r="3" fill="#8b7cf6" />
+              <circle cx="19" cy="5" r="3" fill="#6d5fd0" />
+              <circle cx="5" cy="19" r="3" fill="#6d5fd0" />
+              <circle cx="19" cy="19" r="3" fill="#8b7cf6" />
+            </svg>
+            <div>
+              <div className={styles.logo}>Synapse</div>
+              <p className={styles.email}>{user.email}</p>
+            </div>
           </div>
           <SignOutButton />
         </div>
 
-        <div className={styles.sectionHead}>
-          <span className={styles.sectionTitle}>Nouveau sujet</span>
-        </div>
-        <NewTopicForm />
+        <div className={styles.columns}>
+          <div>
+            <div className={styles.sectionHead}>
+              <span className={styles.sectionTitle}>01 — Nouveau sujet</span>
+            </div>
+            <NewTopicForm />
 
-        <div className={styles.sectionHead}>
-          <span className={styles.sectionTitle}>Vos sujets</span>
-        </div>
-        <TopicSortableList initialTopics={topics ?? []} />
+            <div className={styles.sectionHead}>
+              <span className={styles.sectionTitle}>02 — Vos sujets</span>
+            </div>
+            <TopicSortableList initialTopics={topics ?? []} />
+          </div>
 
-        <div className={styles.sectionHead}>
-          <span className={styles.sectionTitle}>Derniers articles</span>
+          <div>
+            <div className={styles.sectionHead}>
+              <span className={styles.sectionTitle}>03 — Derniers articles</span>
+            </div>
+            <ArticleFeed articles={articles} />
+          </div>
         </div>
-        <ArticleFeed articles={articles} />
       </div>
     </main>
   );
