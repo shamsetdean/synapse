@@ -82,58 +82,71 @@ export default async function DashboardPage() {
   );
 
   const dashboardSection = (
-    <>
+    <div className={styles.main}>
       <div className={styles.sectionHead}>
-        <span className={styles.sectionTitle}>01 — Nouveau sujet</span>
+        <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
+          <span className={styles.sectionTitle}>01 —</span>
+          <h2 className={styles.sectionH2}>Sujets de veille</h2>
+          <span className={styles.sectionCount}>
+            ({(topics ?? []).length} actif{(topics ?? []).length > 1 ? "s" : ""})
+          </span>
+        </div>
       </div>
       <NewTopicForm />
-
-      <div className={styles.sectionHead}>
-        <span className={styles.sectionTitle}>02 — Vos sujets</span>
-      </div>
       <TopicSortableList initialTopics={topics ?? []} />
-    </>
+    </div>
   );
 
   const articlesSection = (
-    <>
+    <div className={styles.main}>
       <div className={styles.sectionHead}>
-        <span className={styles.sectionTitle}>Articles collectés</span>
+        <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
+          <span className={styles.sectionTitle}>02 —</span>
+          <h2 className={styles.sectionH2}>Articles collectés</h2>
+          <span className={styles.sectionCount}>({articles.length} · dernières 72h)</span>
+        </div>
       </div>
       <ArticleFeed articles={articles} />
-    </>
+    </div>
   );
 
   const statsSection = (
-    <>
+    <div className={styles.main}>
       <div className={styles.sectionHead}>
-        <span className={styles.sectionTitle}>Statistiques de veille</span>
+        <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
+          <span className={styles.sectionTitle}>03 —</span>
+          <h2 className={styles.sectionH2}>Statistiques de veille</h2>
+        </div>
       </div>
       <StatsPanel userId={user.id} />
-    </>
+    </div>
   );
 
   const sourcesSection = (
-    <>
+    <div className={styles.main}>
       <div className={styles.sectionHead}>
-        <span className={styles.sectionTitle}>Sources connectées</span>
+        <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
+          <span className={styles.sectionTitle}>04 —</span>
+          <h2 className={styles.sectionH2}>Sources connectées</h2>
+          <span className={styles.sectionCount}>
+            ({(userSources ?? []).length} configurée{(userSources ?? []).length > 1 ? "s" : ""})
+          </span>
+        </div>
       </div>
       <UserSourcesPanel initialSources={userSources ?? []} />
-    </>
+    </div>
   );
 
   return (
     <main className={styles.page}>
-      <div className={styles.wrap}>
-        <DashboardShell
-          logo={logo}
-          signOutButton={<SignOutButton />}
-          dashboardSection={dashboardSection}
-          articlesSection={articlesSection}
-          statsSection={statsSection}
-          sourcesSection={sourcesSection}
-        />
-      </div>
+      <DashboardShell
+        logo={logo}
+        signOutButton={<SignOutButton />}
+        dashboardSection={dashboardSection}
+        articlesSection={articlesSection}
+        statsSection={statsSection}
+        sourcesSection={sourcesSection}
+      />
     </main>
   );
 }
