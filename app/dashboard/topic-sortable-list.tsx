@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   DndContext,
   closestCenter,
@@ -68,6 +68,15 @@ export default function TopicSortableList({
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const supabase = createClient();
+
+  // Resynchronise l'état local quand la liste change côté serveur
+  // (ex: après création d'un sujet + router.refresh()), sauf pendant
+  // le mode édition pour ne pas perdre un réordonnancement en cours.
+  useEffect(() => {
+    if (!editMode) {
+      setTopics(initialTopics);
+    }
+  }, [initialTopics, editMode]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
