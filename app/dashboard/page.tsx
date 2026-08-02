@@ -5,6 +5,7 @@ import NewTopicForm from "./new-topic-form";
 import TopicSortableList from "./topic-sortable-list";
 import ArticleFeed from "./article-feed";
 import StatsPanel from "./stats-panel";
+import UserSourcesPanel from "./user-sources-panel";
 import styles from "./dashboard.module.css";
 
 export default async function DashboardPage() {
@@ -28,6 +29,11 @@ export default async function DashboardPage() {
     )
     .order("published_at", { foreignTable: "articles", ascending: false })
     .limit(50);
+
+  const { data: userSources } = await supabase
+    .from("user_sources")
+    .select("*")
+    .order("created_at", { ascending: false });
 
   const seen = new Set<string>();
   const articles = (articleTopics ?? [])
@@ -103,6 +109,11 @@ export default async function DashboardPage() {
           <span className={styles.sectionTitle}>04 — Statistiques</span>
         </div>
         <StatsPanel userId={user.id} />
+
+        <div className={styles.sectionHead} style={{ marginTop: 32 }}>
+          <span className={styles.sectionTitle}>05 — Sources personnalisées</span>
+        </div>
+        <UserSourcesPanel initialSources={userSources ?? []} />
       </div>
     </main>
   );
