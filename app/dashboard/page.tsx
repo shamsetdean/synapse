@@ -31,14 +31,14 @@ export default async function DashboardPage() {
   const seen = new Set<string>();
   const articles = (articleTopics ?? [])
     .map((row) => {
-      const article = row.articles as {
+      const article = row.articles as unknown as {
         id: string;
         title: string;
         canonical_url: string;
         published_at: string;
         sources: { name: string } | null;
       } | null;
-      const topic = row.topics as { name: string } | null;
+      const topic = row.topics as unknown as { name: string } | null;
 
       if (!article) return null;
 
