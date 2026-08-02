@@ -1,7 +1,7 @@
 "use client";
-
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
+import styles from "./dashboard.module.css";
 
 export default function SignOutButton() {
   const supabase = createClient();
@@ -14,10 +14,7 @@ export default function SignOutButton() {
   }
 
   return (
-    <button
-      onClick={signOut}
-      className="rounded-lg border border-neutral-300 px-4 py-2 text-sm font-medium hover:bg-neutral-50"
-    >
+    <button onClick={signOut} className={styles.signOutBtn}>
       Se déconnecter
     </button>
   );
