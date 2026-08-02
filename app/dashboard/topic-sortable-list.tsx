@@ -11,12 +11,11 @@ import {
 } from "@dnd-kit/core";
 import {
   SortableContext,
-  verticalListSortingStrategy,
   useSortable,
   arrayMove,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { GripVertical, Pencil, Check } from "lucide-react";
+import { Pencil, Check } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import TopicCard from "./topic-card";
 import styles from "./dashboard.module.css";
@@ -29,30 +28,34 @@ type Topic = {
   keywords: { id: string; term: string }[];
 };
 
-function SortableTopic({ topic, editMode }: { topic: Topic; editMode: boolean }) {
-  const { attributes, listeners, setNodeRef, transform, transition } =
+function SortableTopic({ topic }: { topic: Topic }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: topic.id });
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
   };
 
-  if (!editMode) {
-    return <TopicCard topic={topic} />;
-  }
-
   return (
-    <div ref={setNodeRef} style={style} className={styles.topicCard}>
-      <span className={styles.dragHandle} {...attributes} {...listeners}>
-        <GripVertical size={16} aria-hidden="true" />
-      </span>
-      <div className={styles.topicInfo}>
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`${styles.topicCard} ${isDragging ? styles.topicCardDragging : ""}`}
+      {...attributes}
+      {...listeners}
+    >
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 6 }}>
         <div className={styles.topicName}>{topic.name}</div>
-        <div className={styles.topicKeywords}>
+        <div
+          className={`${styles.statusDot} ${topic.status === "active" ? styles.statusDotActive : ""}`}
+        />
+      </div>
+      <div className={styles.topicMeta}>
+        <span>
           {topic.keywords.length > 0
             ? topic.keywords.map((k) => k.term).join(", ")
             : "Aucun mot-clé"}
-        </div>
+        </span>
       </div>
     </div>
   );
@@ -69,9 +72,6 @@ export default function TopicSortableList({
   const [saved, setSaved] = useState(false);
   const supabase = createClient();
 
-  // Resynchronise l'état local quand la liste change côté serveur
-  // (ex: après création d'un sujet + router.refresh()), sauf pendant
-  // le mode édition pour ne pas perdre un réordonnancement en cours.
   useEffect(() => {
     if (!editMode) {
       setTopics(initialTopics);
@@ -118,7 +118,7 @@ export default function TopicSortableList({
 
   return (
     <>
-      <div className={styles.editorToolbar}>
+      <div className={styles.editorToolbar} style={{ justifyContent: "flex-end", marginBottom: 14 }}>
         {editMode && (
           <button onClick={save} disabled={saving} className={styles.btnGhost}>
             {saving ? "Enregistrement..." : saved ? "Enregistré" : "Enregistrer l'ordre"}
@@ -126,35 +126,34 @@ export default function TopicSortableList({
         )}
         <button
           onClick={() => setEditMode((v) => !v)}
-          className={`${styles.editToggle} ${
-            editMode ? styles.editToggleActive : ""
-          }`}
+          className={`${styles.editToggle} ${editMode ? styles.editToggleActive : ""}`}
         >
           {editMode ? (
-            <Check size={14} aria-hidden="true" />
+            <Check size={14} aria-hidden="true" style={{ marginRight: 4, verticalAlign: -2 }} />
           ) : (
-            <Pencil size={14} aria-hidden="true" />
+            <Pencil size={14} aria-hidden="true" style={{ marginRight: 4, verticalAlign: -2 }} />
           )}
-          {editMode ? "Terminer" : "Modifier l'organisation"}
+          {editMode ? "Terminer" : "Réorganiser"}
         </button>
       </div>
 
-      <div className={styles.topicList} style={{ marginTop: 14 }}>
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCenter}
-          onDragEnd={handleDragEnd}
-        >
-          <SortableContext
-            items={topics.map((t) => t.id)}
-            strategy={verticalListSortingStrategy}
-          >
-            {topics.map((topic) => (
-              <SortableTopic key={topic.id} topic={topic} editMode={editMode} />
-            ))}
+      {editMode ? (
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+          <SortableContext items={topics.map((t) => t.id)}>
+            <div className={styles.topicGrid}>
+              {topics.map((topic) => (
+                <SortableTopic key={topic.id} topic={topic} />
+              ))}
+            </div>
           </SortableContext>
         </DndContext>
-      </div>
+      ) : (
+        <div className={styles.topicGrid}>
+          {topics.map((topic) => (
+            <TopicCard key={topic.id} topic={topic} />
+          ))}
+        </div>
+      )}
     </>
   );
 }
