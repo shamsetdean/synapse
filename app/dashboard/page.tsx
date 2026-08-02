@@ -4,6 +4,7 @@ import SignOutButton from "./sign-out-button";
 import NewTopicForm from "./new-topic-form";
 import TopicSortableList from "./topic-sortable-list";
 import ArticleFeed from "./article-feed";
+import StatsPanel from "./stats-panel";
 import styles from "./dashboard.module.css";
 
 export default async function DashboardPage() {
@@ -97,6 +98,11 @@ export default async function DashboardPage() {
             <ArticleFeed articles={articles} />
           </div>
         </div>
+
+        <div className={styles.sectionHead} style={{ marginTop: 12 }}>
+          <span className={styles.sectionTitle}>04 — Statistiques</span>
+        </div>
+        <StatsPanel userId={user.id} />
       </div>
     </main>
   );
