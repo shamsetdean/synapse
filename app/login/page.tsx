@@ -1,6 +1,8 @@
 "use client";
 
 import { createClient } from "@/lib/supabase/client";
+import styles from "../landing.module.css";
+import loginStyles from "./login.module.css";
 
 export default function LoginPage() {
   const supabase = createClient();
@@ -15,30 +17,38 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center px-4">
-      <div className="w-full max-w-sm space-y-6">
-        <div className="text-center">
-          <h1 className="text-2xl font-medium">Synapse</h1>
-          <p className="mt-2 text-sm text-neutral-500">
+    <div className={styles.page}>
+      <div className={loginStyles.center}>
+        <div className={loginStyles.card}>
+          <div className={loginStyles.logoRow}>
+            <svg width="26" height="26" viewBox="0 0 26 26">
+              <line x1="5" y1="5" x2="19" y2="5" stroke="#c4b8ff" strokeWidth="1.6" />
+              <line x1="19" y1="5" x2="5" y2="19" stroke="#c4b8ff" strokeWidth="1.6" />
+              <line x1="5" y1="19" x2="19" y2="19" stroke="#c4b8ff" strokeWidth="1.6" />
+              <circle cx="5" cy="5" r="3" fill="#e6e1ff" />
+              <circle cx="19" cy="5" r="3" fill="#a89bf8" />
+              <circle cx="5" cy="19" r="3" fill="#a89bf8" />
+              <circle cx="19" cy="19" r="3" fill="#e6e1ff" />
+            </svg>
+            Synapse
+          </div>
+          <p className={loginStyles.subtitle}>
             Connectez-vous pour accéder à votre espace de veille
           </p>
-        </div>
-
-        <div className="space-y-3">
           <button
             onClick={() => signInWith("google")}
-            className="w-full rounded-lg border border-neutral-300 px-4 py-2.5 text-sm font-medium hover:bg-neutral-50"
+            className={loginStyles.providerBtn}
           >
             Continuer avec Google
           </button>
           <button
             onClick={() => signInWith("github")}
-            className="w-full rounded-lg border border-neutral-300 px-4 py-2.5 text-sm font-medium hover:bg-neutral-50"
+            className={loginStyles.providerBtn}
           >
             Continuer avec GitHub
           </button>
         </div>
       </div>
-    </main>
+    </div>
   );
 }
