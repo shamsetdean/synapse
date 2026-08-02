@@ -16,6 +16,7 @@ type UserSource = {
   language: string | null;
   country: string | null;
   sync_frequency_minutes: number;
+  last_synced_at: string | null;
   last_test_status: string | null;
 };
 
@@ -43,6 +44,15 @@ const SYNC_OPTIONS = [
   { value: 1440, label: "1 fois par jour" },
 ];
 
+function syncLabel(source: UserSource): string {
+  if (!RSS_COMPATIBLE.has(source.type)) return "Non connecté";
+  if (!source.last_synced_at) return "En attente de sync";
+  const minutesAgo = Math.round((Date.now() - new Date(source.last_synced_at).getTime()) / 60000);
+  if (minutesAgo < 1) return "synchro. à l'instant";
+  if (minutesAgo < 60) return `synchro. il y a ${minutesAgo} min`;
+  return `synchro. il y a ${Math.round(minutesAgo / 60)} h`;
+}
+
 export default function UserSourcesPanel({
   initialSources,
 }: {
@@ -57,14 +67,15 @@ export default function UserSourcesPanel({
   const [country, setCountry] = useState("");
   const [syncFrequency, setSyncFrequency] = useState(60);
   const [testResult, setTestResult] = useState<{ ok: boolean; message: string } | null>(null);
-  const [testing, setTesting] = useState(false);
+  const [testingForm, setTestingForm] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [rowTestState, setRowTestState] = useState<Record<string, "idle" | "testing" | "ok" | "error">>({});
   const supabase = createClient();
   const router = useRouter();
 
-  async function handleTest() {
+  async function handleFormTest() {
     if (!url.trim()) return;
-    setTesting(true);
+    setTestingForm(true);
     setTestResult(null);
     try {
       const { data, error } = await supabase.functions.invoke("test-source", {
@@ -81,7 +92,7 @@ export default function UserSourcesPanel({
     } catch {
       setTestResult({ ok: false, message: "Erreur lors du test." });
     }
-    setTesting(false);
+    setTestingForm(false);
   }
 
   async function handleSubmit(e: FormEvent) {
@@ -127,11 +138,27 @@ export default function UserSourcesPanel({
     router.refresh();
   }
 
+  async function testRow(source: UserSource) {
+    setRowTestState((s) => ({ ...s, [source.id]: "testing" }));
+    try {
+      const { data, error } = await supabase.functions.invoke("test-source", {
+        body: { url: source.url },
+      });
+      const ok = !error && data?.ok;
+      setRowTestState((s) => ({ ...s, [source.id]: ok ? "ok" : "error" }));
+      setTimeout(() => {
+        setRowTestState((s) => ({ ...s, [source.id]: "idle" }));
+      }, 2200);
+    } catch {
+      setRowTestState((s) => ({ ...s, [source.id]: "error" }));
+      setTimeout(() => {
+        setRowTestState((s) => ({ ...s, [source.id]: "idle" }));
+      }, 2200);
+    }
+  }
+
   async function toggleActive(source: UserSource) {
-    await supabase
-      .from("user_sources")
-      .update({ active: !source.active })
-      .eq("id", source.id);
+    await supabase.from("user_sources").update({ active: !source.active }).eq("id", source.id);
     setSources((prev) =>
       prev.map((s) => (s.id === source.id ? { ...s, active: !s.active } : s)),
     );
@@ -174,7 +201,6 @@ export default function UserSourcesPanel({
               className={styles.input}
               value={type}
               onChange={(e) => setType(e.target.value)}
-              style={{ background: "transparent" }}
             >
               {SOURCE_TYPES.map((t) => (
                 <option key={t.value} value={t.value}>
@@ -241,7 +267,6 @@ export default function UserSourcesPanel({
                 className={styles.input}
                 value={syncFrequency}
                 onChange={(e) => setSyncFrequency(Number(e.target.value))}
-                style={{ background: "transparent" }}
               >
                 {SYNC_OPTIONS.map((opt) => (
                   <option key={opt.value} value={opt.value}>
@@ -256,12 +281,12 @@ export default function UserSourcesPanel({
             <div style={{ marginBottom: 14 }}>
               <button
                 type="button"
-                onClick={handleTest}
-                disabled={testing || !url.trim()}
+                onClick={handleFormTest}
+                disabled={testingForm || !url.trim()}
                 className={styles.btnGhost}
                 style={{ width: "100%", justifyContent: "center" }}
               >
-                {testing ? "Test en cours..." : "Tester la source"}
+                {testingForm ? "Test en cours..." : "Tester la source"}
               </button>
               {testResult && (
                 <p
@@ -283,46 +308,80 @@ export default function UserSourcesPanel({
         </form>
       </div>
 
-      <div className={styles.topicList}>
+      <div className={styles.sourceList}>
         {sources.length === 0 && (
           <p className={styles.emptyState}>Aucune source personnalisée pour l&apos;instant.</p>
         )}
-        {sources.map((source) => (
-          <div key={source.id} className={styles.topicCard}>
-            <div className={styles.topicInfo}>
-              <div className={styles.topicName}>{source.name}</div>
-              <div className={styles.topicKeywords}>
-                {SOURCE_TYPES.find((t) => t.value === source.type)?.label ?? source.type}
-                {source.category ? ` · ${source.category}` : ""}
-                {source.language ? ` · ${source.language}` : ""}
-                {source.country ? ` · ${source.country}` : ""}
-                {" · ★ "}
-                {source.reliability_rating}
+        {sources.map((source) => {
+          const pending = !RSS_COMPATIBLE.has(source.type);
+          const testState = rowTestState[source.id] ?? "idle";
+          const testLabel =
+            testState === "testing" ? "Test…" : testState === "ok" ? "✓ Connecté" : testState === "error" ? "Échec" : "Tester la connexion";
+
+          return (
+            <div key={source.id} className={styles.sourceRow}>
+              <div className={styles.sourceRowLeft}>
+                <div className={`${styles.sourceIcon} ${pending ? styles.sourceIconPending : ""}`}>
+                  {source.name[0]?.toUpperCase() ?? "?"}
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
+                  <div className={styles.sourceNameRow}>
+                    <span className={styles.sourceName}>{source.name}</span>
+                    <span className={styles.sourceTypeTag}>
+                      {SOURCE_TYPES.find((t) => t.value === source.type)?.label ?? source.type}
+                    </span>
+                    {pending && <span className={styles.sourcePendingTag}>Extension prévue</span>}
+                  </div>
+                  <div className={styles.sourceHandle}>{source.url}</div>
+                </div>
+              </div>
+
+              <div className={styles.sourceRowRight}>
+                <div className={styles.reliabilityBlock}>
+                  <div className={styles.reliabilityLabel}>FIABILITÉ</div>
+                  <div className={styles.reliabilityBarWrap}>
+                    <div
+                      className={`${styles.reliabilityBar} ${
+                        source.reliability_rating < 3.5 ? styles.reliabilityBarLow : ""
+                      }`}
+                      style={{ width: `${(source.reliability_rating / 5) * 100}%` }}
+                    />
+                  </div>
+                </div>
+
+                <div className={styles.syncStatus}>
+                  <div className={`${styles.syncDot} ${pending ? styles.syncDotPending : ""}`} />
+                  <div className={styles.syncLabel}>{syncLabel(source)}</div>
+                </div>
+
+                {!pending && (
+                  <button
+                    onClick={() => testRow(source)}
+                    disabled={testState === "testing"}
+                    className={`${styles.testBtn} ${
+                      testState === "testing" ? styles.testBtnTesting : ""
+                    } ${testState === "ok" ? styles.testBtnOk : ""}`}
+                  >
+                    {testLabel}
+                  </button>
+                )}
+
+                <button onClick={() => renameSource(source)} className={styles.btnGhost}>
+                  Renommer
+                </button>
+                <button onClick={() => toggleActive(source)} className={styles.btnGhost}>
+                  {source.active ? "Désactiver" : "Activer"}
+                </button>
+                <button
+                  onClick={() => deleteSource(source)}
+                  className={`${styles.btnGhost} ${styles.btnDanger}`}
+                >
+                  Supprimer
+                </button>
               </div>
             </div>
-            <div className={styles.topicActions}>
-              <span
-                className={`${styles.statusBadge} ${
-                  source.active ? "" : styles.statusBadgePaused
-                }`}
-              >
-                {source.active ? "Actif" : "Inactif"}
-              </span>
-              <button onClick={() => renameSource(source)} className={styles.btnGhost}>
-                Renommer
-              </button>
-              <button onClick={() => toggleActive(source)} className={styles.btnGhost}>
-                {source.active ? "Désactiver" : "Activer"}
-              </button>
-              <button
-                onClick={() => deleteSource(source)}
-                className={`${styles.btnGhost} ${styles.btnDanger}`}
-              >
-                Supprimer
-              </button>
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
