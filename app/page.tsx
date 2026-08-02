@@ -2,7 +2,10 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import styles from "./landing.module.css";
-import LandingEditor from "./landing-editor";
+import Hero from "./blocks/Hero";
+import Features from "./blocks/Features";
+import ArticleCards from "./blocks/ArticleCards";
+import Steps from "./blocks/Steps";
 
 export default async function HomePage() {
   const supabase = createClient();
@@ -10,35 +13,9 @@ export default async function HomePage() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  let isAdmin = false;
-
   if (user) {
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("is_admin")
-      .eq("id", user.id)
-      .maybeSingle();
-
-    isAdmin = profile?.is_admin ?? false;
-
-    if (!isAdmin) {
-      redirect("/dashboard");
-    }
+    redirect("/dashboard");
   }
-
-  const { data: layout } = await supabase
-    .from("site_layout")
-    .select("blocks")
-    .eq("id", "landing")
-    .maybeSingle();
-
-  const blocks =
-    (layout?.blocks as { id: string; visible: boolean }[] | null) ?? [
-      { id: "hero", visible: true },
-      { id: "features", visible: true },
-      { id: "articles", visible: true },
-      { id: "steps", visible: true },
-    ];
 
   return (
     <div className={styles.page}>
@@ -60,12 +37,15 @@ export default async function HomePage() {
             <a href="#fonctionnalites">Fonctionnalités</a>
             <a href="#comment-ca-marche">Comment ça marche</a>
           </div>
-          <Link href={isAdmin ? "/dashboard" : "/login"} className={styles.btn}>
-            {isAdmin ? "Aller au dashboard" : "Se connecter"}
+          <Link href="/login" className={styles.btn}>
+            Se connecter
           </Link>
         </nav>
 
-        <LandingEditor initialBlocks={blocks} isAdmin={isAdmin} />
+        <Hero />
+        <Features />
+        <ArticleCards />
+        <Steps />
 
         <footer>
           <span>Synapse — Anthropotech Lab</span>
