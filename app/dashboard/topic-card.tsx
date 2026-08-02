@@ -36,24 +36,24 @@ export default function TopicCard({ topic }: { topic: Topic }) {
 
   return (
     <div className={styles.topicCard}>
-      <div className={styles.topicInfo}>
-        <h3 className={styles.topicName}>{topic.name}</h3>
-        <p className={styles.topicKeywords}>
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 6 }}>
+        <div className={styles.topicName}>{topic.name}</div>
+        <div
+          className={`${styles.statusDot} ${topic.status === "active" ? styles.statusDotActive : ""}`}
+        />
+      </div>
+
+      <div className={styles.topicMeta}>
+        <span>
           {topic.keywords.length > 0
             ? topic.keywords.map((k) => k.term).join(", ")
             : "Aucun mot-clé"}
-        </p>
-      </div>
-      <div className={styles.topicActions}>
-        <span
-          className={`${styles.statusBadge} ${
-            topic.status === "active" ? "" : styles.statusBadgePaused
-          }`}
-        >
-          {topic.status === "active" ? "Actif" : "En pause"}
         </span>
+      </div>
+
+      <div style={{ display: "flex", gap: 6, marginTop: 4 }}>
         <button onClick={togglePause} disabled={loading} className={styles.btnGhost}>
-          {topic.status === "active" ? "Mettre en pause" : "Réactiver"}
+          {topic.status === "active" ? "Pause" : "Réactiver"}
         </button>
         <button
           onClick={deleteTopic}
