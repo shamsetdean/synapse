@@ -1,0 +1,19 @@
+name: Ingestion planifiée
+
+on:
+  schedule:
+    - cron: "*/20 * * * *"
+  workflow_dispatch: {}
+
+jobs:
+  ingest:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Appeler l'Edge Function ingestion-scheduler
+        run: |
+          curl -sS -X POST \
+            "https://ewuiewmaggegavpepylm.supabase.co/functions/v1/ingestion-scheduler" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}" \
+            -H "apikey: ${{ secrets.SUPABASE_ANON_KEY }}" \
+            -H "Content-Type: application/json" \
+            --fail
