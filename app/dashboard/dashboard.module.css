@@ -510,3 +510,193 @@
   font-size: 10.5px;
   font-weight: 600;
 }
+
+/* Liste de sources connectées */
+.sourceList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.sourceRow {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 14px 18px;
+  background: var(--card);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+  animation: cardIn 0.4s ease both;
+}
+
+.sourceRow:hover {
+  border-color: var(--violet);
+  transform: translateX(3px);
+  box-shadow: 0 4px 14px rgba(109, 95, 208, 0.12);
+}
+
+.sourceRowLeft {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+  flex: 1;
+}
+
+.sourceIcon {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #8b7cf6, #6d5fd0);
+  color: #f2ede3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 15px;
+  flex-shrink: 0;
+}
+
+.sourceIconPending {
+  background: var(--track);
+  color: var(--ink-dim);
+}
+
+.sourceNameRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.sourceName {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 14.5px;
+}
+
+.sourceTypeTag {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--ink-mid);
+  background: var(--track);
+  border-radius: 20px;
+  padding: 2px 8px;
+}
+
+.sourcePendingTag {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  color: var(--ink-dim);
+  border: 1px dashed var(--line-dashed);
+  border-radius: 20px;
+  padding: 2px 8px;
+}
+
+.sourceHandle {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--ink-dim);
+}
+
+.sourceRowRight {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  flex-wrap: wrap;
+}
+
+.reliabilityBlock {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  min-width: 90px;
+}
+
+.reliabilityLabel {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--ink-dim);
+}
+
+.reliabilityBarWrap {
+  width: 80px;
+  height: 6px;
+  border-radius: 4px;
+  background: var(--track);
+  overflow: hidden;
+}
+
+.reliabilityBar {
+  height: 100%;
+  border-radius: 4px;
+  transform-origin: left;
+  animation: growBar 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  background: linear-gradient(90deg, #8b7cf6, #6d5fd0);
+}
+
+.reliabilityBarLow {
+  background: #c9c2b0;
+}
+
+.syncStatus {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 120px;
+}
+
+.syncDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--good);
+  animation: pulseNode 2.2s ease-in-out infinite;
+}
+
+.syncDotPending {
+  background: #c9c2b0;
+  animation: none;
+}
+
+.syncLabel {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--ink-mid);
+}
+
+.testBtn {
+  padding: 8px 14px;
+  border-radius: 9px;
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--ink);
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.testBtnTesting {
+  background: linear-gradient(
+    90deg,
+    rgba(139, 124, 246, 0.25),
+    rgba(109, 95, 208, 0.5),
+    rgba(139, 124, 246, 0.25)
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.2s linear infinite;
+  border-color: var(--line);
+}
+
+.testBtnOk {
+  background: var(--violet-bg);
+  border-color: var(--violet-deep);
+  color: var(--violet-deep);
+}
