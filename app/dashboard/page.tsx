@@ -2,23 +2,23 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import SignOutButton from "./sign-out-button";
 import NewTopicForm from "./new-topic-form";
-import TopicCard from "./topic-card";
+import TopicSortableList from "./topic-sortable-list";
 import ArticleFeed from "./article-feed";
+import styles from "./dashboard.module.css";
 
 export default async function DashboardPage() {
   const supabase = createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
-
   if (!user) {
     redirect("/login");
   }
 
   const { data: topics } = await supabase
     .from("topics")
-    .select("id, name, status, keywords(id, term)")
-    .order("created_at", { ascending: false });
+    .select("id, name, status, sort_order, keywords(id, term)")
+    .order("sort_order", { ascending: true });
 
   const { data: articleTopics } = await supabase
     .from("article_topics")
@@ -39,9 +39,7 @@ export default async function DashboardPage() {
         sources: { name: string } | null;
       } | null;
       const topic = row.topics as unknown as { name: string } | null;
-
       if (!article) return null;
-
       return {
         id: article.id,
         title: article.title,
@@ -58,40 +56,29 @@ export default async function DashboardPage() {
     });
 
   return (
-    <main className="mx-auto max-w-2xl px-6 py-8">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-medium">Synapse</h1>
-        <SignOutButton />
-      </div>
+    <main className={styles.page}>
+      <div className={styles.wrap}>
+        <div className={styles.topbar}>
+          <div>
+            <div className={styles.logo}>Synapse</div>
+            <p className={styles.email}>Connecté en tant que {user.email}</p>
+          </div>
+          <SignOutButton />
+        </div>
 
-      <p className="mt-2 text-sm text-neutral-500">
-        Connecté en tant que {user.email}
-      </p>
-
-      <h2 className="mt-8 text-sm font-medium text-neutral-700">
-        Nouveau sujet
-      </h2>
-      <div className="mt-3">
+        <div className={styles.sectionHead}>
+          <span className={styles.sectionTitle}>Nouveau sujet</span>
+        </div>
         <NewTopicForm />
-      </div>
 
-      <h2 className="mt-8 text-sm font-medium text-neutral-700">
-        Vos sujets
-      </h2>
-      <div className="mt-3 space-y-3">
-        {!topics || topics.length === 0 ? (
-          <p className="text-sm text-neutral-500">
-            Aucun sujet pour l&apos;instant. Créez-en un ci-dessus.
-          </p>
-        ) : (
-          topics.map((topic) => <TopicCard key={topic.id} topic={topic} />)
-        )}
-      </div>
+        <div className={styles.sectionHead}>
+          <span className={styles.sectionTitle}>Vos sujets</span>
+        </div>
+        <TopicSortableList initialTopics={topics ?? []} />
 
-      <h2 className="mt-8 text-sm font-medium text-neutral-700">
-        Derniers articles
-      </h2>
-      <div className="mt-3">
+        <div className={styles.sectionHead}>
+          <span className={styles.sectionTitle}>Derniers articles</span>
+        </div>
         <ArticleFeed articles={articles} />
       </div>
     </main>
