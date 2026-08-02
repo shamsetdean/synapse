@@ -1,20 +1,17 @@
 .page {
-  --bg-0: #111217;
-  --bg-2: #1c1d22;
+  --cream: #f2ede3;
+  --card: #fbf8f2;
+  --line: #dcd5c6;
+  --ink: #1a1a1a;
+  --ink-dim: #8a8578;
+  --ink-faint: #b0aa98;
   --violet: #8b7cf6;
-  --violet-soft: #a89bf8;
-  --lavender: #c4b8ff;
-  --lavender-light: #e6e1ff;
-  --ink: #f5f4f7;
-  --ink-dim: #b3aecf;
-  --ink-muted: #7a7791;
-  --glass-bg: rgba(255, 255, 255, 0.045);
-  --glass-border: rgba(255, 255, 255, 0.12);
-  --danger: #f37272;
-  --danger-bg: rgba(243, 114, 114, 0.12);
-  --danger-border: rgba(243, 114, 114, 0.28);
+  --violet-deep: #6d5fd0;
+  --violet-bg: #ece9fb;
+  --danger: #a32d2d;
+  --danger-bg: #f7dede;
 
-  background: radial-gradient(ellipse at 75% 15%, rgba(75, 63, 174, 0.22), transparent 55%), var(--bg-0);
+  background: var(--cream);
   color: var(--ink);
   font-family: -apple-system, "Helvetica Neue", Arial, sans-serif;
   line-height: 1.5;
@@ -22,7 +19,7 @@
 }
 
 .wrap {
-  max-width: 720px;
+  max-width: 960px;
   margin: 0 auto;
   padding: 40px 24px 80px;
 }
@@ -31,107 +28,119 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  padding-bottom: 20px;
+  margin-bottom: 32px;
+  border-bottom: 1px solid var(--line);
+}
+
+.topbarLeft {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
 .logo {
-  font-size: 19px;
-  font-weight: 700;
+  font-size: 20px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
 }
 
 .email {
-  margin-top: 6px;
-  font-size: 13px;
-  color: var(--ink-muted);
+  font-size: 11px;
+  color: var(--ink-dim);
+  font-family: "Courier New", monospace;
+  margin-top: 2px;
 }
 
 .signOutBtn {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 9px 16px;
+  padding: 8px 16px;
   border-radius: 10px;
-  font-size: 13px;
-  font-weight: 500;
-  border: 1px solid var(--glass-border);
-  background: var(--glass-bg);
+  font-size: 11px;
+  font-family: "Courier New", monospace;
+  border: 1px solid var(--line);
+  background: transparent;
   color: var(--ink);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
   cursor: pointer;
-  font-family: inherit;
+}
+
+.columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  align-items: start;
 }
 
 .sectionHead {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   justify-content: space-between;
-  margin-top: 40px;
   margin-bottom: 14px;
 }
 
 .sectionTitle {
-  font-size: 13px;
-  font-weight: 600;
-  letter-spacing: 0.02em;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  font-family: "Courier New", monospace;
+  color: var(--ink-dim);
   text-transform: uppercase;
-  color: var(--lavender);
 }
 
 .panel {
-  background: var(--glass-bg);
-  border: 1px solid var(--glass-border);
+  background: var(--card);
+  border: 1px solid var(--line);
   border-radius: 16px;
-  padding: 22px;
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  padding: 18px;
+  margin-bottom: 28px;
 }
 
 .field {
-  margin-bottom: 14px;
+  margin-bottom: 16px;
 }
 
 .fieldLast {
-  margin-bottom: 18px;
+  margin-bottom: 20px;
 }
 
 .label {
   display: block;
-  font-size: 13px;
-  font-weight: 500;
+  font-size: 11px;
   color: var(--ink-dim);
   margin-bottom: 6px;
 }
 
 .input {
   width: 100%;
-  padding: 10px 14px;
-  border-radius: 10px;
-  border: 1px solid var(--glass-border);
-  background: rgba(255, 255, 255, 0.03);
+  border: none;
+  border-bottom: 1px solid var(--line);
+  background: transparent;
+  padding: 8px 0;
+  font-size: 13px;
   color: var(--ink);
-  font-size: 14px;
   font-family: inherit;
 }
 
 .input::placeholder {
-  color: var(--ink-muted);
+  color: var(--ink-faint);
 }
 
 .input:focus {
   outline: none;
-  border-color: var(--violet-soft);
+  border-color: var(--violet-deep);
 }
 
 .btnPrimary {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 10px 20px;
+  display: block;
+  width: 100%;
+  text-align: center;
+  padding: 10px;
   border-radius: 10px;
-  font-size: 14px;
-  font-weight: 500;
+  font-size: 12px;
+  letter-spacing: 0.04em;
   border: none;
-  background: linear-gradient(135deg, var(--violet), #6d5fd0);
+  background: linear-gradient(135deg, var(--violet), var(--violet-deep));
   color: #ffffff;
   cursor: pointer;
   font-family: inherit;
@@ -144,36 +153,30 @@
 
 .emptyState {
   font-size: 13px;
-  color: var(--ink-muted);
-}
-
-/* Éditeur de mise en page des sujets */
-.editorToolbar {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 12px;
+  color: var(--ink-dim);
 }
 
 .editToggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 16px;
-  border-radius: 10px;
-  font-size: 13px;
-  font-weight: 500;
-  border: 1px solid var(--glass-border);
-  background: var(--glass-bg);
+  font-size: 10px;
+  font-family: "Courier New", monospace;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 4px 9px;
+  background: transparent;
   color: var(--ink);
   cursor: pointer;
-  font-family: inherit;
 }
 
 .editToggleActive {
-  background: linear-gradient(135deg, var(--violet), #6d5fd0);
+  background: linear-gradient(135deg, var(--violet), var(--violet-deep));
   border: none;
   color: #ffffff;
+}
+
+.editorToolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .topicList {
@@ -182,14 +185,11 @@
   gap: 10px;
 }
 
-/* Carte de sujet */
 .topicCard {
-  background: var(--glass-bg);
-  border: 1px solid var(--glass-border);
+  background: var(--card);
+  border: 1px solid var(--line);
   border-radius: 14px;
-  padding: 16px 18px;
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  padding: 14px 16px;
   display: flex;
   align-items: center;
   gap: 12px;
@@ -197,7 +197,7 @@
 
 .dragHandle {
   cursor: grab;
-  color: var(--ink-muted);
+  color: var(--ink-dim);
   display: flex;
   flex-shrink: 0;
 }
@@ -208,17 +208,15 @@
 }
 
 .topicName {
-  font-size: 14px;
-  font-weight: 600;
-  margin-bottom: 3px;
+  font-size: 13px;
+  font-weight: 500;
 }
 
 .topicKeywords {
-  font-size: 12px;
-  color: var(--ink-muted);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  font-size: 11px;
+  color: var(--ink-dim);
+  font-family: "Courier New", monospace;
+  margin-top: 3px;
 }
 
 .topicActions {
@@ -229,19 +227,18 @@
 }
 
 .statusBadge {
-  font-size: 11px;
-  color: var(--lavender);
-  background: rgba(196, 184, 255, 0.12);
-  border: 1px solid rgba(196, 184, 255, 0.25);
-  padding: 3px 9px;
+  display: inline-block;
+  font-size: 10px;
+  color: var(--violet-deep);
+  background: var(--violet-bg);
   border-radius: 6px;
+  padding: 2px 8px;
   white-space: nowrap;
 }
 
 .statusBadgePaused {
-  color: var(--ink-muted);
-  background: rgba(255, 255, 255, 0.05);
-  border-color: var(--glass-border);
+  color: var(--ink-dim);
+  background: var(--line);
 }
 
 .btnGhost {
@@ -250,10 +247,9 @@
   gap: 5px;
   padding: 7px 12px;
   border-radius: 9px;
-  font-size: 12px;
-  font-weight: 500;
-  border: 1px solid var(--glass-border);
-  background: rgba(255, 255, 255, 0.03);
+  font-size: 11px;
+  border: 1px solid var(--line);
+  background: transparent;
   color: var(--ink);
   cursor: pointer;
   font-family: inherit;
@@ -268,10 +264,9 @@
 .btnDanger {
   color: var(--danger);
   background: var(--danger-bg);
-  border-color: var(--danger-border);
+  border-color: var(--danger-bg);
 }
 
-/* Feed d'articles */
 .articleList {
   display: flex;
   flex-direction: column;
@@ -280,36 +275,27 @@
 
 .articleCard {
   display: block;
-  background: var(--glass-bg);
-  border: 1px solid var(--glass-border);
+  background: var(--card);
+  border: 1px solid var(--line);
   border-radius: 14px;
-  padding: 16px 18px;
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  padding: 14px 16px;
   text-decoration: none;
   color: var(--ink);
 }
 
 .articleMeta {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
-  color: var(--ink-muted);
-  margin-bottom: 8px;
+  font-size: 10px;
+  color: var(--violet-deep);
+  font-family: "Courier New", monospace;
+  letter-spacing: 0.02em;
+  margin-bottom: 6px;
 }
 
 .articleTopicTag {
-  font-size: 11px;
-  color: var(--lavender);
-  background: rgba(196, 184, 255, 0.12);
-  border: 1px solid rgba(196, 184, 255, 0.25);
-  padding: 2px 8px;
-  border-radius: 6px;
+  color: var(--violet-deep);
 }
 
 .articleTitle {
-  font-size: 14px;
-  font-weight: 600;
+  font-size: 13px;
   line-height: 1.4;
 }
