@@ -44,25 +44,25 @@ export default function NavRing({
   };
 
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+    <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
       <div style={{ display: "flex", flexDirection: "column", gap: 1, alignItems: "flex-end" }}>
         <div
           style={{
             fontFamily: "var(--font-mono)",
-            fontSize: 10,
+            fontSize: 11,
             color: "var(--ink-dim)",
             letterSpacing: "0.05em",
           }}
         >
           {active.num} —
         </div>
-        <div style={{ fontFamily: "var(--font-display)", fontSize: 14, fontWeight: 600 }}>
+        <div style={{ fontFamily: "var(--font-display)", fontSize: 15, fontWeight: 600 }}>
           {active.name}
         </div>
       </div>
 
-      <div style={{ animation: "navBreathe 3.2s ease-in-out infinite" }}>
-        <svg width="60" height="60" viewBox="0 0 64 64">
+      <div className="synapseNavRingWrap">
+        <svg width="92" height="92" viewBox="0 0 64 64">
           <defs>
             <linearGradient id="navRingGrad" x1="0" y1="0" x2="1" y2="1">
               <stop offset="0%" stopColor="#8b7cf6" />
@@ -75,7 +75,7 @@ export default function NavRing({
               d={quadrantPath[p.key]}
               fill={activePage === p.key ? "url(#navRingGrad)" : "#e2dcc9"}
               onClick={() => onChange(p.key)}
-              style={{ cursor: "pointer", transition: "fill 0.25s ease" }}
+              className={activePage === p.key ? "synapseNavQuadActive" : "synapseNavQuad"}
             />
           ))}
           <circle cx="32" cy="32" r="17" fill="var(--cream)" stroke="var(--line)" strokeWidth="1" />
@@ -101,6 +101,7 @@ export default function NavRing({
               fontFamily="var(--font-mono)"
               fontSize="7"
               fill={activePage === p.key ? "#f2ede3" : "var(--ink-dim)"}
+              style={{ pointerEvents: "none" }}
             >
               {digit[p.key]}
             </text>
@@ -109,7 +110,21 @@ export default function NavRing({
       </div>
 
       <style>{`
-        @keyframes navBreathe { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.045); } }
+        .synapseNavRingWrap {
+          animation: synapseNavBreathe 2.4s ease-in-out infinite;
+          filter: drop-shadow(0 0 0 rgba(139,124,246,0));
+        }
+        @keyframes synapseNavBreathe {
+          0%, 100% { transform: scale(1); filter: drop-shadow(0 0 0px rgba(139,124,246,0)); }
+          50% { transform: scale(1.09); filter: drop-shadow(0 0 8px rgba(139,124,246,0.45)); }
+        }
+        .synapseNavQuad, .synapseNavQuadActive {
+          cursor: pointer;
+          transition: fill 0.25s ease, opacity 0.2s ease;
+        }
+        .synapseNavQuad:hover {
+          opacity: 0.7;
+        }
       `}</style>
     </div>
   );
