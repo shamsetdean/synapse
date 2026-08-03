@@ -712,67 +712,59 @@
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: 10px;
-}
-
-.neuronLine {
-  position: absolute;
-  top: 24px;
-  bottom: 24px;
-  right: 21px;
-  width: 2px;
-  background: var(--line);
-  z-index: 0;
+  gap: 14px;
 }
 
 .neuronPulse {
   position: absolute;
-  left: 50%;
+  right: 17px;
   width: 8px;
   height: 8px;
   border-radius: 50%;
   background: var(--violet);
   box-shadow: 0 0 10px 2px rgba(139, 124, 246, 0.6);
-  transform: translateX(-50%);
-  animation: neuronTravel 3.6s ease-in-out infinite;
+  transform: translateX(50%);
+  animation: neuronTravel 4.5s ease-in-out infinite;
+  z-index: 2;
+  pointer-events: none;
 }
 
 @keyframes neuronTravel {
   0% { top: 0%; opacity: 0; }
-  10% { opacity: 1; }
-  90% { opacity: 1; }
+  8% { opacity: 1; }
+  92% { opacity: 1; }
   100% { top: 100%; opacity: 0; }
 }
 
-.neuronRow {
+.neuronRowWrap {
+  display: grid;
+  grid-template-columns: 1fr 34px;
+  align-items: stretch;
+  gap: 0;
   position: relative;
-  z-index: 1;
+}
+
+.neuronPill {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+  flex-direction: column;
+  gap: 2px;
+  justify-content: center;
   background: var(--card);
   border: 1px solid var(--line);
   border-radius: 999px;
   padding: 12px 18px;
+  margin-right: -14px;
   text-decoration: none;
   color: var(--ink);
+  min-width: 0;
   transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
   animation: cardIn 0.4s ease both;
 }
 
-.neuronRow:hover {
+.neuronPill:hover {
   border-color: var(--violet);
   transform: translateX(3px);
   box-shadow: 0 4px 14px rgba(109, 95, 208, 0.14);
-}
-
-.neuronRowText {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-  flex: 1;
 }
 
 .neuronRowTitle {
@@ -791,7 +783,28 @@
   color: var(--ink-dim);
 }
 
+.neuronRail {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1;
+}
+
+.neuronRailLine {
+  position: absolute;
+  left: 50%;
+  top: 100%;
+  height: 14px;
+  width: 2px;
+  background: var(--line);
+  transform: translateX(-50%);
+  z-index: 0;
+}
+
 .neuronDot {
+  position: relative;
+  z-index: 1;
   width: 14px;
   height: 14px;
   border-radius: 50%;
