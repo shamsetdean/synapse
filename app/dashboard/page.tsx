@@ -81,11 +81,24 @@ export default async function DashboardPage() {
     </>
   );
 
+  const articlesSection = (
+    <div className={styles.main}>
+      <div className={styles.sectionHead}>
+        <div style={{ display: "flex", alignItems: "baseline", gap: 12 }}>
+          <h2 className={styles.sectionH2} style={{ fontSize: 30 }}>
+            Articles collectés
+          </h2>
+          <span className={styles.sectionCount}>({articles.length})</span>
+        </div>
+      </div>
+      <ArticleFeed articles={articles} />
+    </div>
+  );
+
   const dashboardSection = (
     <div className={styles.main}>
       <div className={styles.sectionHead}>
         <div style={{ display: "flex", alignItems: "baseline", gap: 12 }}>
-          <span className={styles.sectionTitle}>01 —</span>
           <h2 className={styles.sectionH2} style={{ fontSize: 30 }}>
             Sujets de veille
           </h2>
@@ -99,30 +112,12 @@ export default async function DashboardPage() {
     </div>
   );
 
-  const articlesSection = (
-    <div className={styles.main}>
-      <div className={styles.sectionHead}>
-        <div style={{ display: "flex", alignItems: "baseline", gap: 12 }}>
-          <span className={styles.sectionTitle}>02 —</span>
-          <h2 className={styles.sectionH2} style={{ fontSize: 30 }}>
-            Articles collectés
-          </h2>
-          <span className={styles.sectionCount}>({articles.length})</span>
-        </div>
-      </div>
-      <ArticleFeed articles={articles} />
-    </div>
-  );
-
   const configSection = (
     <div className={styles.main}>
       <div className={styles.sectionHead}>
-        <div style={{ display: "flex", alignItems: "baseline", gap: 12 }}>
-          <span className={styles.sectionTitle}>03 —</span>
-          <h2 className={styles.sectionH2} style={{ fontSize: 30 }}>
-            Configuration
-          </h2>
-        </div>
+        <h2 className={styles.sectionH2} style={{ fontSize: 30 }}>
+          Configuration
+        </h2>
       </div>
 
       <div className={styles.sectionHead} style={{ marginTop: 8, marginBottom: 4 }}>
