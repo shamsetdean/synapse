@@ -3,11 +3,31 @@
 const PAGES = [
   { key: "dashboard", num: "01", name: "Tableau de bord" },
   { key: "articles", num: "02", name: "Articles" },
-  { key: "stats", num: "03", name: "Statistiques" },
-  { key: "sources", num: "04", name: "Sources" },
+  { key: "config", num: "03", name: "Configuration" },
 ] as const;
 
 export type DashboardPageKey = (typeof PAGES)[number]["key"];
+
+function polar(cx: number, cy: number, r: number, angleDeg: number) {
+  const rad = ((angleDeg - 90) * Math.PI) / 180;
+  return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) };
+}
+
+function ringSegmentPath(
+  cx: number,
+  cy: number,
+  outerR: number,
+  innerR: number,
+  startDeg: number,
+  endDeg: number,
+) {
+  const oStart = polar(cx, cy, outerR, startDeg);
+  const oEnd = polar(cx, cy, outerR, endDeg);
+  const iEnd = polar(cx, cy, innerR, endDeg);
+  const iStart = polar(cx, cy, innerR, startDeg);
+  const largeArc = endDeg - startDeg > 180 ? 1 : 0;
+  return `M ${oStart.x} ${oStart.y} A ${outerR} ${outerR} 0 ${largeArc} 1 ${oEnd.x} ${oEnd.y} L ${iEnd.x} ${iEnd.y} A ${innerR} ${innerR} 0 ${largeArc} 0 ${iStart.x} ${iStart.y} Z`;
+}
 
 export default function NavRing({
   activePage,
@@ -17,34 +37,14 @@ export default function NavRing({
   onChange: (page: DashboardPageKey) => void;
 }) {
   const active = PAGES.find((p) => p.key === activePage)!;
-
-  const quadrantPath: Record<DashboardPageKey, string> = {
-    dashboard:
-      "M 10.79 10.79 A 30 30 0 0 1 53.21 10.79 L 44.73 19.27 A 18 18 0 0 0 19.27 19.27 Z",
-    articles:
-      "M 53.21 10.79 A 30 30 0 0 1 53.21 53.21 L 44.73 44.73 A 18 18 0 0 0 44.73 19.27 Z",
-    stats:
-      "M 53.21 53.21 A 30 30 0 0 1 10.79 53.21 L 19.27 44.73 A 18 18 0 0 0 44.73 44.73 Z",
-    sources:
-      "M 10.79 53.21 A 30 30 0 0 1 10.79 10.79 L 19.27 19.27 A 18 18 0 0 0 19.27 44.73 Z",
-  };
-
-  const labelPos: Record<DashboardPageKey, { x: number; y: number }> = {
-    dashboard: { x: 32, y: 8 },
-    articles: { x: 56, y: 32 },
-    stats: { x: 32, y: 56 },
-    sources: { x: 8, y: 32 },
-  };
-
-  const digit: Record<DashboardPageKey, string> = {
-    dashboard: "1",
-    articles: "2",
-    stats: "3",
-    sources: "4",
-  };
+  const cx = 32;
+  const cy = 32;
+  const outerR = 30;
+  const innerR = 17;
+  const step = 360 / PAGES.length;
 
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+    <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
       <div style={{ display: "flex", flexDirection: "column", gap: 1, alignItems: "flex-end" }}>
         <div
           style={{
@@ -56,74 +56,86 @@ export default function NavRing({
         >
           {active.num} —
         </div>
-        <div style={{ fontFamily: "var(--font-display)", fontSize: 15, fontWeight: 600 }}>
+        <div style={{ fontFamily: "var(--font-display)", fontSize: 16, fontWeight: 600 }}>
           {active.name}
         </div>
       </div>
 
-      <div className="synapseNavRingWrap">
-        <svg width="92" height="92" viewBox="0 0 64 64">
+      <div style={{ position: "relative", width: 130, height: 130 }}>
+        <svg
+          width="130"
+          height="130"
+          viewBox="0 0 64 64"
+          className="synapseNavSpin"
+          style={{ position: "absolute", inset: 0 }}
+        >
           <defs>
             <linearGradient id="navRingGrad" x1="0" y1="0" x2="1" y2="1">
               <stop offset="0%" stopColor="#8b7cf6" />
               <stop offset="100%" stopColor="#6d5fd0" />
             </linearGradient>
           </defs>
-          {PAGES.map((p) => (
-            <path
-              key={p.key}
-              d={quadrantPath[p.key]}
-              fill={activePage === p.key ? "url(#navRingGrad)" : "#e2dcc9"}
-              onClick={() => onChange(p.key)}
-              className={activePage === p.key ? "synapseNavQuadActive" : "synapseNavQuad"}
-            />
-          ))}
-          <circle cx="32" cy="32" r="17" fill="var(--cream)" stroke="var(--line)" strokeWidth="1" />
-          <text
-            x="32"
-            y="32"
-            textAnchor="middle"
-            dominantBaseline="central"
-            fontFamily="var(--font-mono)"
-            fontSize="13"
-            fontWeight="600"
-            fill="var(--ink)"
+          {PAGES.map((p, i) => {
+            const start = i * step;
+            const end = start + step - 2;
+            return (
+              <path
+                key={p.key}
+                d={ringSegmentPath(cx, cy, outerR, innerR, start, end)}
+                fill={activePage === p.key ? "url(#navRingGrad)" : "#e2dcc9"}
+                onClick={() => onChange(p.key)}
+                className="synapseNavQuad"
+              />
+            );
+          })}
+        </svg>
+
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            pointerEvents: "none",
+          }}
+        >
+          <div
+            style={{
+              width: 68,
+              height: 68,
+              borderRadius: "50%",
+              background: "var(--cream)",
+              border: "1px solid var(--line)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontFamily: "var(--font-mono)",
+              fontSize: 20,
+              fontWeight: 600,
+              color: "var(--ink)",
+            }}
           >
             {active.num}
-          </text>
-          {PAGES.map((p) => (
-            <text
-              key={p.key}
-              x={labelPos[p.key].x}
-              y={labelPos[p.key].y}
-              textAnchor="middle"
-              dominantBaseline="middle"
-              fontFamily="var(--font-mono)"
-              fontSize="7"
-              fill={activePage === p.key ? "#f2ede3" : "var(--ink-dim)"}
-              style={{ pointerEvents: "none" }}
-            >
-              {digit[p.key]}
-            </text>
-          ))}
-        </svg>
+          </div>
+        </div>
       </div>
 
       <style>{`
-        .synapseNavRingWrap {
-          animation: synapseNavBreathe 2.4s ease-in-out infinite;
-          filter: drop-shadow(0 0 0 rgba(139,124,246,0));
+        .synapseNavSpin {
+          animation: synapseNavRotate 14s linear infinite;
+          transform-origin: 32px 32px;
         }
-        @keyframes synapseNavBreathe {
-          0%, 100% { transform: scale(1); filter: drop-shadow(0 0 0px rgba(139,124,246,0)); }
-          50% { transform: scale(1.09); filter: drop-shadow(0 0 8px rgba(139,124,246,0.45)); }
+        @keyframes synapseNavRotate {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
         }
-        .synapseNavQuad, .synapseNavQuadActive {
+        .synapseNavQuad {
           cursor: pointer;
           transition: fill 0.25s ease, opacity 0.2s ease;
         }
         .synapseNavQuad:hover {
-          opacity: 0.7;
+          opacity: 0.75;
         }
       `}</style>
     </div>
