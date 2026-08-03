@@ -29,7 +29,7 @@ export default async function DashboardPage() {
       "articles(id, title, canonical_url, published_at, sources(name)), topics(name)",
     )
     .order("published_at", { foreignTable: "articles", ascending: false })
-    .limit(50);
+    .limit(150);
 
   const { data: userSources } = await supabase
     .from("user_sources")
@@ -84,9 +84,11 @@ export default async function DashboardPage() {
   const dashboardSection = (
     <div className={styles.main}>
       <div className={styles.sectionHead}>
-        <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
+        <div style={{ display: "flex", alignItems: "baseline", gap: 12 }}>
           <span className={styles.sectionTitle}>01 —</span>
-          <h2 className={styles.sectionH2}>Sujets de veille</h2>
+          <h2 className={styles.sectionH2} style={{ fontSize: 30 }}>
+            Sujets de veille
+          </h2>
           <span className={styles.sectionCount}>
             ({(topics ?? []).length} actif{(topics ?? []).length > 1 ? "s" : ""})
           </span>
@@ -100,38 +102,36 @@ export default async function DashboardPage() {
   const articlesSection = (
     <div className={styles.main}>
       <div className={styles.sectionHead}>
-        <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
+        <div style={{ display: "flex", alignItems: "baseline", gap: 12 }}>
           <span className={styles.sectionTitle}>02 —</span>
-          <h2 className={styles.sectionH2}>Articles collectés</h2>
-          <span className={styles.sectionCount}>({articles.length} · dernières 72h)</span>
+          <h2 className={styles.sectionH2} style={{ fontSize: 30 }}>
+            Articles collectés
+          </h2>
+          <span className={styles.sectionCount}>({articles.length})</span>
         </div>
       </div>
       <ArticleFeed articles={articles} />
     </div>
   );
 
-  const statsSection = (
+  const configSection = (
     <div className={styles.main}>
       <div className={styles.sectionHead}>
-        <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
+        <div style={{ display: "flex", alignItems: "baseline", gap: 12 }}>
           <span className={styles.sectionTitle}>03 —</span>
-          <h2 className={styles.sectionH2}>Statistiques de veille</h2>
+          <h2 className={styles.sectionH2} style={{ fontSize: 30 }}>
+            Configuration
+          </h2>
         </div>
       </div>
-      <StatsPanel userId={user.id} />
-    </div>
-  );
 
-  const sourcesSection = (
-    <div className={styles.main}>
-      <div className={styles.sectionHead}>
-        <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
-          <span className={styles.sectionTitle}>04 —</span>
-          <h2 className={styles.sectionH2}>Sources connectées</h2>
-          <span className={styles.sectionCount}>
-            ({(userSources ?? []).length} configurée{(userSources ?? []).length > 1 ? "s" : ""})
-          </span>
-        </div>
+      <div className={styles.sectionHead} style={{ marginTop: 8, marginBottom: 4 }}>
+        <span className={styles.sectionTitle}>Statistiques</span>
+      </div>
+      <StatsPanel userId={user.id} />
+
+      <div className={styles.sectionHead} style={{ marginTop: 32, marginBottom: 4 }}>
+        <span className={styles.sectionTitle}>Sources connectées</span>
       </div>
       <UserSourcesPanel initialSources={userSources ?? []} />
     </div>
@@ -144,8 +144,7 @@ export default async function DashboardPage() {
         signOutButton={<SignOutButton />}
         dashboardSection={dashboardSection}
         articlesSection={articlesSection}
-        statsSection={statsSection}
-        sourcesSection={sourcesSection}
+        configSection={configSection}
       />
     </main>
   );

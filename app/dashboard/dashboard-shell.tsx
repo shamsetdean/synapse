@@ -9,15 +9,13 @@ export default function DashboardShell({
   signOutButton,
   dashboardSection,
   articlesSection,
-  statsSection,
-  sourcesSection,
+  configSection,
 }: {
   logo: ReactNode;
   signOutButton: ReactNode;
   dashboardSection: ReactNode;
   articlesSection: ReactNode;
-  statsSection: ReactNode;
-  sourcesSection: ReactNode;
+  configSection: ReactNode;
 }) {
   const [activePage, setActivePage] = useState<DashboardPageKey>("dashboard");
 
@@ -37,11 +35,8 @@ export default function DashboardShell({
       <div style={{ display: activePage === "articles" ? "block" : "none" }}>
         {articlesSection}
       </div>
-      <div style={{ display: activePage === "stats" ? "block" : "none" }}>
-        {statsSection}
-      </div>
-      <div style={{ display: activePage === "sources" ? "block" : "none" }}>
-        {sourcesSection}
+      <div style={{ display: activePage === "config" ? "block" : "none" }}>
+        {configSection}
       </div>
     </>
   );
