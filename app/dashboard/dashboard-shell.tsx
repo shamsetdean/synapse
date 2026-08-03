@@ -17,7 +17,7 @@ export default function DashboardShell({
   articlesSection: ReactNode;
   configSection: ReactNode;
 }) {
-  const [activePage, setActivePage] = useState<DashboardPageKey>("dashboard");
+  const [activePage, setActivePage] = useState<DashboardPageKey>("articles");
 
   return (
     <>
@@ -29,11 +29,11 @@ export default function DashboardShell({
         </div>
       </div>
 
-      <div style={{ display: activePage === "dashboard" ? "block" : "none" }}>
-        {dashboardSection}
-      </div>
       <div style={{ display: activePage === "articles" ? "block" : "none" }}>
         {articlesSection}
+      </div>
+      <div style={{ display: activePage === "dashboard" ? "block" : "none" }}>
+        {dashboardSection}
       </div>
       <div style={{ display: activePage === "config" ? "block" : "none" }}>
         {configSection}
