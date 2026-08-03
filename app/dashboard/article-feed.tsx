@@ -62,39 +62,41 @@ export default function ArticleFeed({
     <div className={styles.neuronColumns}>
       {columns.map((columnArticles, colIndex) => (
         <div key={colIndex} className={styles.neuronColumn}>
-          {columnArticles.length > 1 && (
-            <div className={styles.neuronLine}>
-              <div
-                className={styles.neuronPulse}
-                style={{ animationDelay: `${colIndex * 0.6}s` }}
-              />
-            </div>
-          )}
-          {columnArticles.map((article) => {
+          {columnArticles.map((article, rowIndex) => {
             const hours = (now - new Date(article.publishedAt).getTime()) / 3600000;
             const fresh = Math.max(0, Math.min(1, 1 - hours / 72));
             const dotColor = mixColor("#4a473f", "#8b7cf6", fresh);
             const archived = hours >= 72;
+            const isLast = rowIndex === columnArticles.length - 1;
 
             return (
-              <a
-                key={article.id}
-                href={article.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className={styles.neuronRow}
-                style={{ opacity: archived ? 0.55 : 1 }}
-              >
-                <div className={styles.neuronRowText}>
+              <div key={article.id} className={styles.neuronRowWrap} style={{ opacity: archived ? 0.55 : 1 }}>
+                <a
+                  href={article.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={styles.neuronPill}
+                >
                   <span className={styles.neuronRowTitle}>{article.title}</span>
                   <span className={styles.neuronRowMeta}>
                     {article.sourceName} · {ageLabel(hours)}
                   </span>
+                </a>
+
+                <div className={styles.neuronRail}>
+                  {!isLast && <div className={styles.neuronRailLine} />}
+                  <span className={styles.neuronDot} style={{ background: dotColor }} />
                 </div>
-                <span className={styles.neuronDot} style={{ background: dotColor }} />
-              </a>
+              </div>
             );
           })}
+
+          {columnArticles.length > 1 && (
+            <div
+              className={styles.neuronPulse}
+              style={{ animationDelay: `${colIndex * 0.6}s` }}
+            />
+          )}
         </div>
       ))}
     </div>
