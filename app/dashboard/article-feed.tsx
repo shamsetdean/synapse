@@ -32,8 +32,10 @@ function mixColor(hexA: string, hexB: string, t: number): string {
 function ageLabel(hours: number): string {
   if (hours < 1) return `${Math.round(hours * 60)} min`;
   if (hours < 24) return `${Math.round(hours)} h`;
-  return `${Math.floor(hours / 24)} j ${Math.round(hours % 24)} h`;
+  return `${Math.floor(hours / 24)} j`;
 }
+
+const COLUMN_COUNT = 3;
 
 export default function ArticleFeed({
   articles,
@@ -51,51 +53,50 @@ export default function ArticleFeed({
 
   const now = Date.now();
 
+  const columns: FeedArticle[][] = Array.from({ length: COLUMN_COUNT }, () => []);
+  articles.forEach((article, i) => {
+    columns[i % COLUMN_COUNT].push(article);
+  });
+
   return (
-    <div className={styles.articleGrid}>
-      {articles.map((article, i) => {
-        const hours = (now - new Date(article.publishedAt).getTime()) / 3600000;
-        const fresh = Math.max(0, Math.min(1, 1 - hours / 72));
-        const color = mixColor("#4a473f", "#8b7cf6", fresh);
-        const archived = hours >= 72;
-
-        return (
-          <a
-            key={article.id}
-            href={article.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className={styles.articleCard}
-            style={{
-              opacity: archived ? 0.55 : 1,
-              animationDelay: `${(i % 12) * 0.04}s`,
-            }}
-          >
-            <div style={{ display: "flex", flexDirection: "column", gap: 4, minWidth: 0 }}>
-              <div className={styles.articleSource}>{article.sourceName}</div>
-              <div className={styles.articleTitle}>{article.title}</div>
+    <div className={styles.neuronColumns}>
+      {columns.map((columnArticles, colIndex) => (
+        <div key={colIndex} className={styles.neuronColumn}>
+          {columnArticles.length > 1 && (
+            <div className={styles.neuronLine}>
+              <div
+                className={styles.neuronPulse}
+                style={{ animationDelay: `${colIndex * 0.6}s` }}
+              />
             </div>
+          )}
+          {columnArticles.map((article) => {
+            const hours = (now - new Date(article.publishedAt).getTime()) / 3600000;
+            const fresh = Math.max(0, Math.min(1, 1 - hours / 72));
+            const dotColor = mixColor("#4a473f", "#8b7cf6", fresh);
+            const archived = hours >= 72;
 
-            <div className={styles.gaugeRow}>
-              <div className={styles.gaugeLabel}>FRAÎCHEUR</div>
-              <div className={styles.gaugeTrack}>
-                <div
-                  className={styles.gaugeDot}
-                  style={{ left: `${(fresh * 100).toFixed(1)}%` }}
-                />
-              </div>
-            </div>
-
-            <div className={styles.articleFooter}>
-              <span className={styles.articleTag}>{article.topicName}</span>
-              <span className={styles.articleAge} style={{ color }}>
-                {ageLabel(hours)}
-                {archived ? " (archivé)" : ""}
-              </span>
-            </div>
-          </a>
-        );
-      })}
+            return (
+              <a
+                key={article.id}
+                href={article.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={styles.neuronRow}
+                style={{ opacity: archived ? 0.55 : 1 }}
+              >
+                <div className={styles.neuronRowText}>
+                  <span className={styles.neuronRowTitle}>{article.title}</span>
+                  <span className={styles.neuronRowMeta}>
+                    {article.sourceName} · {ageLabel(hours)}
+                  </span>
+                </div>
+                <span className={styles.neuronDot} style={{ background: dotColor }} />
+              </a>
+            );
+          })}
+        </div>
+      ))}
     </div>
   );
 }
