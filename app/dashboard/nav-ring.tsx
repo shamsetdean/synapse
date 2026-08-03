@@ -1,8 +1,8 @@
 "use client";
 
 const PAGES = [
-  { key: "dashboard", num: "01", name: "Tableau de bord" },
-  { key: "articles", num: "02", name: "Articles" },
+  { key: "articles", num: "01", name: "Articles" },
+  { key: "dashboard", num: "02", name: "Sujets de veille" },
   { key: "config", num: "03", name: "Configuration" },
 ] as const;
 
@@ -45,30 +45,38 @@ export default function NavRing({
 
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-      <div style={{ display: "flex", flexDirection: "column", gap: 1, alignItems: "flex-end" }}>
-        <div
-          style={{
-            fontFamily: "var(--font-mono)",
-            fontSize: 11,
-            color: "var(--ink-dim)",
-            letterSpacing: "0.05em",
-          }}
-        >
-          {active.num} —
-        </div>
-        <div style={{ fontFamily: "var(--font-display)", fontSize: 16, fontWeight: 600 }}>
-          {active.name}
-        </div>
+      <div
+        style={{
+          fontFamily: "var(--font-display)",
+          fontSize: 16,
+          fontWeight: 600,
+        }}
+      >
+        {active.name}
       </div>
 
       <div style={{ position: "relative", width: 130, height: 130 }}>
+        {/* Anneau décoratif pointillé, purement animé, ne capte pas les clics */}
         <svg
           width="130"
           height="130"
           viewBox="0 0 64 64"
-          className="synapseNavSpin"
-          style={{ position: "absolute", inset: 0 }}
+          style={{ position: "absolute", inset: 0, pointerEvents: "none" }}
         >
+          <circle
+            cx={cx}
+            cy={cy}
+            r={outerR + 4}
+            fill="none"
+            stroke="var(--violet)"
+            strokeWidth="0.6"
+            strokeDasharray="2 4"
+            opacity="0.5"
+            className="synapseDecoSpin"
+          />
+        </svg>
+
+        <svg width="130" height="130" viewBox="0 0 64 64" style={{ position: "absolute", inset: 0 }}>
           <defs>
             <linearGradient id="navRingGrad" x1="0" y1="0" x2="1" y2="1">
               <stop offset="0%" stopColor="#8b7cf6" />
@@ -122,11 +130,11 @@ export default function NavRing({
       </div>
 
       <style>{`
-        .synapseNavSpin {
-          animation: synapseNavRotate 14s linear infinite;
+        .synapseDecoSpin {
+          animation: synapseDecoRotate 20s linear infinite;
           transform-origin: 32px 32px;
         }
-        @keyframes synapseNavRotate {
+        @keyframes synapseDecoRotate {
           from { transform: rotate(0deg); }
           to { transform: rotate(360deg); }
         }
