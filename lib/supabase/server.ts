@@ -3,7 +3,7 @@ import { cookies } from "next/headers";
 
 type CookieToSet = { name: string; value: string; options?: CookieOptions };
 
-// Next.js 15 : cookies() renvoie desormais une promesse. La fonction devient
+// Next.js 15 : cookies() renvoie désormais une promesse. La fonction devient
 // donc asynchrone, et tous ses appelants doivent utiliser await createClient().
 export async function createClient() {
   const cookieStore = await cookies();
@@ -22,8 +22,8 @@ export async function createClient() {
               cookieStore.set(name, value, options),
             );
           } catch {
-            // Appele depuis un Server Component : ignore, le middleware
-            // se charge du rafraichissement de session.
+            // Appelé depuis un Server Component : ignoré, le proxy
+            // se charge du rafraîchissement de session.
           }
         },
       },
