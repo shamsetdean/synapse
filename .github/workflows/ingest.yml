@@ -15,5 +15,6 @@ jobs:
             "https://ewuiewmaggegavpepylm.supabase.co/functions/v1/ingestion-scheduler" \
             -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}" \
             -H "apikey: ${{ secrets.SUPABASE_ANON_KEY }}" \
+            -H "X-Ingest-Token: ${{ secrets.INGEST_TOKEN }}" \
             -H "Content-Type: application/json" \
             --fail
