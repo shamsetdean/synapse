@@ -23,10 +23,14 @@ const STEP_LABELS: Record<string, string> = {
   classement: "Classement",
 };
 
-function estimateSecondsRemaining(job: Job): number {
-  const elapsedMs = Date.now() - new Date(job.started_at).getTime();
-  const elapsedSec = elapsedMs / 1000;
+// Délai au-delà duquel on considère que l'analyse n'a jamais démarré : sans
+// lui, un échec d'appel à analyze-topic laissait l'utilisateur bloqué
+// indéfiniment sur l'écran d'initialisation, sans retour possible.
+const STARTUP_TIMEOUT_MS = 20000;
+
+function estimateSecondsRemaining(job: Job, nowMs: number): number {
   if (job.progress_percent <= 0) return 0;
+  const elapsedSec = (nowMs - new Date(job.started_at).getTime()) / 1000;
   const totalEstimate = (elapsedSec / job.progress_percent) * 100;
   return Math.max(0, Math.round(totalEstimate - elapsedSec));
 }
@@ -53,7 +57,12 @@ export default function AnalysisProgress({
   onComplete: () => void;
 }) {
   const [job, setJob] = useState<Job | null>(null);
-  const [secondsLeft, setSecondsLeft] = useState(0);
+  const [timedOut, setTimedOut] = useState(false);
+  // Horodatage courant, mis à jour uniquement depuis le rappel de l'intervalle.
+  // Zéro signifie « pas encore de mesure côté client » : le compte à rebours
+  // était auparavant stocké en état et décrémenté à l'aveugle, ce qui le
+  // faisait dériver et imposait un setState dans le corps d'un effet.
+  const [nowMs, setNowMs] = useState(0);
   const supabase = createClient();
 
   useEffect(() => {
@@ -72,26 +81,41 @@ export default function AnalysisProgress({
 
     loadLatestJob();
 
+    function handleChange(payload: { new: unknown }) {
+      if (!active) return;
+      const updated = payload.new as Job;
+      if (!updated || !updated.id) return;
+      setJob(updated);
+      if (updated.status === "completed" || updated.status === "failed") {
+        setTimeout(() => {
+          if (active) onComplete();
+        }, 1200);
+      }
+    }
+
+    // Restreint aux insertions et mises à jour : sur une suppression,
+    // payload.new est vide et produisait une progression NaN.
     const channel = supabase
       .channel(`analysis_jobs_${topicId}`)
       .on(
         "postgres_changes",
         {
-          event: "*",
+          event: "INSERT",
           schema: "public",
           table: "analysis_jobs",
           filter: `topic_id=eq.${topicId}`,
         },
-        (payload) => {
-          if (!active) return;
-          const updated = payload.new as Job;
-          setJob(updated);
-          if (updated.status === "completed" || updated.status === "failed") {
-            setTimeout(() => {
-              if (active) onComplete();
-            }, 1200);
-          }
+        handleChange,
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "analysis_jobs",
+          filter: `topic_id=eq.${topicId}`,
         },
+        handleChange,
       )
       .subscribe();
 
@@ -103,15 +127,28 @@ export default function AnalysisProgress({
   }, [topicId]);
 
   useEffect(() => {
-    if (!job) return;
-    setSecondsLeft(estimateSecondsRemaining(job));
-    const interval = setInterval(() => {
-      setSecondsLeft((s) => Math.max(0, s - 1));
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [job?.progress_percent, job?.started_at]); // eslint-disable-line react-hooks/exhaustive-deps
+    const interval = setInterval(() => setNowMs(Date.now()), 1000);
+    const timeout = setTimeout(() => setTimedOut(true), STARTUP_TIMEOUT_MS);
+    return () => {
+      clearInterval(interval);
+      clearTimeout(timeout);
+    };
+  }, []);
 
   if (!job) {
+    if (timedOut) {
+      return (
+        <div className={styles.panel}>
+          <p className={styles.emptyState}>
+            L&apos;analyse n&apos;a pas démarré. Le sujet a bien été créé, mais
+            la collecte n&apos;a pas pu être lancée.
+          </p>
+          <button onClick={onComplete} className={styles.btnGhost}>
+            Retour
+          </button>
+        </div>
+      );
+    }
     return (
       <div className={styles.panel}>
         <p className={styles.emptyState}>Initialisation de l&apos;analyse...</p>
@@ -121,6 +158,7 @@ export default function AnalysisProgress({
 
   const currentIndex = STEP_ORDER.indexOf(job.current_step);
   const visibleSteps = STEP_ORDER.slice(0, 4);
+  const secondsLeft = nowMs > 0 ? estimateSecondsRemaining(job, nowMs) : null;
 
   return (
     <div className={styles.panel}>
@@ -138,7 +176,7 @@ export default function AnalysisProgress({
 
       <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 14 }}>
         <span style={{ fontSize: 26, fontWeight: 600, fontFamily: "'Courier New', monospace" }}>
-          {formatTime(secondsLeft)}
+          {secondsLeft === null ? "--:--" : formatTime(secondsLeft)}
         </span>
         <span style={{ fontSize: 11, color: "var(--ink-dim)" }}>temps restant estimé</span>
       </div>

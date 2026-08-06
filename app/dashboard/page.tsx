@@ -36,6 +36,11 @@ export default async function DashboardPage() {
     .select("*")
     .order("created_at", { ascending: false });
 
+  // Server Component : rendu une fois par requête, jamais réexécuté côté client.
+  // L'âge est calculé ici précisément pour éviter la divergence d'hydratation
+  // que produisait le même appel dans article-feed.tsx.
+  // eslint-disable-next-line react-hooks/purity
+  const nowMs = Date.now();
   const seen = new Set<string>();
   const articles = (articleTopics ?? [])
     .map((row) => {
@@ -55,6 +60,7 @@ export default async function DashboardPage() {
         sourceName: article.sources?.name ?? "Source inconnue",
         publishedAt: article.published_at,
         topicName: topic?.name ?? "",
+        ageHours: (nowMs - new Date(article.published_at).getTime()) / 3600000,
       };
     })
     .filter((article): article is NonNullable<typeof article> => {
@@ -108,7 +114,7 @@ export default async function DashboardPage() {
         </div>
       </div>
       <NewTopicForm />
-      <TopicSortableList initialTopics={topics ?? []} />
+      <TopicSortableList key={(topics ?? []).map((t) => t.id).join(",")} initialTopics={topics ?? []} />
     </div>
   );
 

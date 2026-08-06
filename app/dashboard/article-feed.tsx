@@ -9,6 +9,11 @@ type FeedArticle = {
   sourceName: string;
   publishedAt: string;
   topicName: string;
+  // Âge en heures, calculé côté serveur dans app/dashboard/page.tsx.
+  // Le calculer ici avec Date.now() rendait le composant impur : le rendu
+  // serveur et l'hydratation produisaient deux valeurs différentes, donc une
+  // couleur de fraîcheur et un libellé d'âge potentiellement divergents.
+  ageHours: number;
 };
 
 function lerp(a: number, b: number, t: number): number {
@@ -51,8 +56,6 @@ export default function ArticleFeed({
     );
   }
 
-  const now = Date.now();
-
   const columns: FeedArticle[][] = Array.from({ length: COLUMN_COUNT }, () => []);
   articles.forEach((article, i) => {
     columns[i % COLUMN_COUNT].push(article);
@@ -63,7 +66,7 @@ export default function ArticleFeed({
       {columns.map((columnArticles, colIndex) => (
         <div key={colIndex} className={styles.neuronColumn}>
           {columnArticles.map((article, rowIndex) => {
-            const hours = (now - new Date(article.publishedAt).getTime()) / 3600000;
+            const hours = article.ageHours;
             const fresh = Math.max(0, Math.min(1, 1 - hours / 72));
             const dotColor = mixColor("#4a473f", "#8b7cf6", fresh);
             const archived = hours >= 72;
