@@ -1,3 +1,297 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* ==========================================================================
+   Synapse — jetons de la charte graphique
+
+   Toutes les valeurs de ce fichier sont relevées dans
+   Synapse_-_Identité_Visuelle.html. Aucune n'a été inventée, modifiée ni
+   arrondie. Les seuls ajouts, signalés comme tels, sont les points de
+   rupture pour l'adaptation aux écrans, absents de la charte.
+
+   Préfixe --sy- pour éviter toute collision avec Tailwind.
+   ========================================================================== */
+
+:root {
+  /* --- Fonds ------------------------------------------------------------ */
+  --sy-bg-page: #f2ede3;
+  --sy-bg-card: #f7f3e9;
+  --sy-bg-input: #fbf8f1;
+  --sy-bg-track: #e9e2d2;
+  --sy-bg-ring-inactive: #e2dcc9;
+
+  /* --- Bordures --------------------------------------------------------- */
+  --sy-border: #d9d2c2;
+  --sy-border-dashed: #c9c2b0;
+  --sy-border-alert: #d8b9b3;
+  --sy-border-width: 1px;
+
+  /* --- Textes ----------------------------------------------------------- */
+  --sy-text: #1a1a1a;
+  --sy-text-mid: #5b5a53;
+  --sy-text-dim: #8a8478;
+
+  /* --- Accents ---------------------------------------------------------- */
+  --sy-accent: #8b7cf6;
+  --sy-accent-deep: #6d5fd0;
+
+  /* --- États ------------------------------------------------------------ */
+  --sy-alert: #a4453b;
+  --sy-sync-active: #7fae7f;
+  --sy-sync-idle: #c9c2b0;
+
+  /* --- Jauge de fraîcheur ----------------------------------------------- */
+  --sy-fresh-cold: #4a473f;
+  --sy-fresh-warm: #8b7cf6;
+
+  /* --- Accents translucides --------------------------------------------- */
+  --sy-accent-a90: rgba(139, 124, 246, 0.9);
+  --sy-accent-a60: rgba(139, 124, 246, 0.6);
+  --sy-accent-a45: rgba(139, 124, 246, 0.45);
+  --sy-accent-a25: rgba(139, 124, 246, 0.25);
+  --sy-accent-a15: rgba(139, 124, 246, 0.15);
+  --sy-accent-a12: rgba(139, 124, 246, 0.12);
+  --sy-accent-a00: rgba(139, 124, 246, 0);
+  --sy-accent-deep-a50: rgba(109, 95, 208, 0.5);
+  --sy-accent-deep-a14: rgba(109, 95, 208, 0.14);
+  --sy-page-a92: rgba(242, 237, 227, 0.92);
+
+  /* --- Familles typographiques ------------------------------------------
+     --font-display et --font-mono sont fournies par next/font depuis
+     app/layout.tsx, qui sert les fichiers depuis le domaine du site. Les
+     noms sont ceux déjà employés par les styles existants du dashboard.
+     -------------------------------------------------------------------- */
+  --sy-font-sans: var(--font-display), sans-serif;
+  --sy-font-mono: var(--font-mono), monospace;
+
+  /* --- Graisses --------------------------------------------------------- */
+  --sy-weight-regular: 400;
+  --sy-weight-medium: 500;
+  --sy-weight-semibold: 600;
+  --sy-weight-bold: 700;
+
+  /* --- Tailles de police ------------------------------------------------ */
+  --sy-size-9: 9px;
+  --sy-size-9-5: 9.5px;
+  --sy-size-10: 10px;
+  --sy-size-10-5: 10.5px;
+  --sy-size-11: 11px;
+  --sy-size-11-5: 11.5px;
+  --sy-size-12: 12px;
+  --sy-size-12-5: 12.5px;
+  --sy-size-13: 13px;
+  --sy-size-13-5: 13.5px;
+  --sy-size-14-5: 14.5px;
+  --sy-size-15: 15px;
+  --sy-size-16: 16px;
+  --sy-size-19: 19px;
+  --sy-size-24: 24px;
+  --sy-size-26: 26px;
+
+  /* --- Interlignage ----------------------------------------------------- */
+  --sy-leading-tight: 1.3;
+  --sy-leading-snug: 1.35;
+  --sy-leading-normal: 1.5;
+
+  /* --- Interlettrage ---------------------------------------------------- */
+  --sy-tracking-tight: 0.01em;
+  --sy-tracking-wide: 0.04em;
+  --sy-tracking-wider: 0.05em;
+
+  /* --- Rayons ----------------------------------------------------------- */
+  --sy-radius-3: 3px;
+  --sy-radius-4: 4px;
+  --sy-radius-8: 8px;
+  --sy-radius-9: 9px;
+  --sy-radius-10: 10px;
+  --sy-radius-12: 12px;
+  --sy-radius-14: 14px;
+  --sy-radius-16: 16px;
+  --sy-radius-20: 20px;
+  --sy-radius-full: 50%;
+
+  /* --- Espacements ------------------------------------------------------ */
+  --sy-space-2: 2px;
+  --sy-space-3: 3px;
+  --sy-space-4: 4px;
+  --sy-space-5: 5px;
+  --sy-space-6: 6px;
+  --sy-space-8: 8px;
+  --sy-space-10: 10px;
+  --sy-space-12: 12px;
+  --sy-space-14: 14px;
+  --sy-space-16: 16px;
+  --sy-space-18: 18px;
+  --sy-space-20: 20px;
+  --sy-space-22: 22px;
+  --sy-space-24: 24px;
+  --sy-space-28: 28px;
+
+  /* --- Largeurs --------------------------------------------------------- */
+  --sy-width-max: 1400px;
+  --sy-width-content: 1200px;
+  --sy-width-narrow: 440px;
+
+  /* --- Grilles ---------------------------------------------------------- */
+  --sy-grid-articles: repeat(auto-fill, minmax(300px, 1fr));
+  --sy-grid-topics: repeat(auto-fit, minmax(320px, 1fr));
+  --sy-grid-counters: repeat(auto-fit, minmax(150px, 1fr));
+  --sy-grid-240: repeat(auto-fit, minmax(240px, 1fr));
+  --sy-grid-160: repeat(auto-fit, minmax(160px, 1fr));
+
+  /* --- Durées et courbes ------------------------------------------------ */
+  --sy-ease: ease;
+  --sy-ease-in-out: ease-in-out;
+  --sy-ease-out: ease-out;
+  --sy-ease-spring: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --sy-duration-fast: 0.15s;
+  --sy-duration-base: 0.2s;
+  --sy-duration-slow: 0.25s;
+  --sy-duration-bar: 0.5s;
+  --sy-duration-gauge: 0.6s;
+
+  /* --- Points de rupture ------------------------------------------------
+     AJOUT. La charte n'en contient aucun. Ces valeurs sont mes décisions
+     d'organisation, prises pour respecter la demande d'adaptation à tous
+     les écrans. Elles ne modifient aucune valeur graphique : seule la
+     disposition change, jamais les couleurs, les tailles de police ni les
+     rayons. Les variables CSS n'étant pas utilisables dans une requête
+     média, elles sont ici à titre documentaire et reprises littéralement
+     dans les modules.
+
+       Mobile   : jusqu'à 639px
+       Tablette : de 640px à 899px
+       Bureau   : de 900px à 1199px
+       Large    : à partir de 1200px
+     -------------------------------------------------------------------- */
+}
+
+/* ==========================================================================
+   Règles de base — valeurs de la charte
+   ========================================================================== */
+
+body {
+  margin: 0;
+  background: var(--sy-bg-page);
+  color: var(--sy-text);
+  font-family: var(--sy-font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: var(--sy-accent);
+  color: var(--sy-bg-page);
+}
+
+a {
+  color: var(--sy-accent-deep);
+}
+
+a:hover {
+  color: var(--sy-accent);
+}
+
+/* ==========================================================================
+   Animations — les douze déclarées dans la charte, reproduites à
+   l'identique. Aucune n'a été ajoutée, retirée ni modifiée.
+   ========================================================================== */
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes pulseNode {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 var(--sy-accent-a45);
+  }
+  50% {
+    transform: scale(1.12);
+    box-shadow: 0 0 0 6px var(--sy-accent-a00);
+  }
+}
+
+@keyframes spinSlow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes fadeSlideIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes cardIn {
+  from { opacity: 0; transform: translateY(14px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes growBar {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+
+@keyframes growBarV {
+  from { transform: scaleY(0); }
+  to { transform: scaleY(1); }
+}
+
+@keyframes donutIn {
+  from { opacity: 0; transform: scale(0.7) rotate(-40deg); }
+  to { opacity: 1; transform: scale(1) rotate(0deg); }
+}
+
+@keyframes breathe {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.045); }
+}
+
+@keyframes shimmerSweep {
+  0% { transform: translateX(-120%); }
+  100% { transform: translateX(220%); }
+}
+
+@keyframes synapseSpark {
+  0% { left: 0%; opacity: 0; transform: translate(-50%, -50%) scale(0.4); }
+  8% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  42% { left: 100%; opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  44%, 100% { left: 100%; opacity: 0; }
+}
+
+@keyframes arriveFlash {
+  0% { opacity: 0.9; transform: scale(0.5); }
+  100% { opacity: 0; transform: scale(1.6); }
+}
+
+/* ==========================================================================
+   AJOUT à ta demande. La charte définit breathe à une amplitude de 1.045,
+   jugée trop discrète sur le sélecteur de vue. Cette variante ne remplace
+   pas breathe : elle s'y ajoute et n'est employée que par le sélecteur, de
+   sorte que le camembert de la vue Statistiques conserve exactement le
+   rythme du fichier de référence.
+   ========================================================================== */
+
+@keyframes breatheStrong {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.09); }
+}
+
+/* ==========================================================================
+   AJOUT signalé. Neutralise les animations pour les seules personnes ayant
+   demandé un mouvement réduit dans les réglages de leur système. Pour tous
+   les autres, le rendu est strictement identique à la charte.
+   Retire ce bloc si tu ne le souhaites pas.
+   ========================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
