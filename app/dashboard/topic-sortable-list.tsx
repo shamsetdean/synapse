@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   DndContext,
   closestCenter,
@@ -31,6 +32,7 @@ type Topic = {
 function SortableTopic({ topic }: { topic: Topic }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: topic.id });
+
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
@@ -70,13 +72,16 @@ export default function TopicSortableList({
   const [editMode, setEditMode] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const supabase = createClient();
+  const router = useRouter();
 
-  useEffect(() => {
-    if (!editMode) {
-      setTopics(initialTopics);
-    }
-  }, [initialTopics, editMode]);
+  // L'ancien useEffect qui réinitialisait topics à la sortie du mode édition a
+  // été supprimé : il réécrasait l'ordre déplacé avec les données serveur
+  // périmées, ce qui perdait silencieusement la réorganisation. La
+  // resynchronisation avec le serveur est désormais assurée par le prop key
+  // posé sur ce composant dans app/dashboard/page.tsx, qui le remonte dès que
+  // la liste des sujets change côté serveur.
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -92,11 +97,22 @@ export default function TopicSortableList({
       return arrayMove(items, oldIndex, newIndex);
     });
     setSaved(false);
+    setError(null);
+  }
+
+  function cancelEdit() {
+    // Sortie sans enregistrer : on revient explicitement à l'ordre serveur.
+    setTopics(initialTopics);
+    setSaved(false);
+    setError(null);
+    setEditMode(false);
   }
 
   async function save() {
     setSaving(true);
-    await Promise.all(
+    setError(null);
+
+    const results = await Promise.all(
       topics.map((topic, index) =>
         supabase
           .from("topics")
@@ -104,8 +120,19 @@ export default function TopicSortableList({
           .eq("id", topic.id),
       ),
     );
+
     setSaving(false);
+
+    // Les retours d'erreur étaient ignorés : un refus de la RLS produisait une
+    // interface affichant un succès qui n'avait pas eu lieu.
+    if (results.some((r) => r.error)) {
+      setError("L'ordre n'a pas pu être enregistré.");
+      return;
+    }
+
     setSaved(true);
+    setEditMode(false);
+    router.refresh();
   }
 
   if (topics.length === 0) {
@@ -121,11 +148,11 @@ export default function TopicSortableList({
       <div className={styles.editorToolbar} style={{ justifyContent: "flex-end", marginBottom: 14 }}>
         {editMode && (
           <button onClick={save} disabled={saving} className={styles.btnGhost}>
-            {saving ? "Enregistrement..." : saved ? "Enregistré" : "Enregistrer l'ordre"}
+            {saving ? "Enregistrement..." : "Enregistrer l'ordre"}
           </button>
         )}
         <button
-          onClick={() => setEditMode((v) => !v)}
+          onClick={() => (editMode ? cancelEdit() : setEditMode(true))}
           className={`${styles.editToggle} ${editMode ? styles.editToggleActive : ""}`}
         >
           {editMode ? (
@@ -133,9 +160,18 @@ export default function TopicSortableList({
           ) : (
             <Pencil size={14} aria-hidden="true" style={{ marginRight: 4, verticalAlign: -2 }} />
           )}
-          {editMode ? "Terminer" : "Réorganiser"}
+          {editMode ? "Annuler" : "Réorganiser"}
         </button>
       </div>
+
+      {error && (
+        <p style={{ color: "var(--danger)", fontSize: 13, marginBottom: 14 }}>{error}</p>
+      )}
+      {saved && !editMode && (
+        <p style={{ color: "var(--violet-deep)", fontSize: 13, marginBottom: 14 }}>
+          Ordre enregistré.
+        </p>
+      )}
 
       {editMode ? (
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
