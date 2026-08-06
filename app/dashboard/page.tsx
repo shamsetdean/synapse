@@ -10,7 +10,7 @@ import DashboardShell from "./dashboard-shell";
 import styles from "./dashboard.module.css";
 
 export default async function DashboardPage() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();

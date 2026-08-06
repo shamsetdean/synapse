@@ -14,7 +14,7 @@ type DashboardStats = {
 };
 
 export default async function StatsPanel({ userId }: { userId: string }) {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data } = await supabase.rpc("get_dashboard_stats", {
     p_user_id: userId,
   });
