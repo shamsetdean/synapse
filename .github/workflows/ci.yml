@@ -21,26 +21,26 @@ jobs:
       # next build peut évaluer ces variables lors de l'analyse des pages.
       # Valeurs factices : aucune requête réseau n'est émise à la compilation,
       # et la clé anon est de toute façon publique par conception.
-      # Si la compilation échoue faute de valeurs réelles, il faudra les
-      # déclarer en secrets de dépôt et les référencer ici.
       NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
       NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-anon-key
 
     steps:
       - name: Récupérer le dépôt
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Installer Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: "20"
-          # Pas de mise en cache : elle exige un fichier de verrouillage,
-          # que le dépôt ne contient pas encore. À activer avec cache: npm
-          # une fois package-lock.json versionné.
+          # La mise en cache automatique de setup-node v6 s'appuie sur un
+          # fichier de verrouillage, absent du dépôt : elle ne ferait rien
+          # et brouillerait le journal. À réactiver une fois
+          # package-lock.json versionné.
+          package-manager-cache: false
 
       - name: Installer les dépendances
         # npm ci exigerait un package-lock.json. En son absence, npm install
-        # résout les versions à la volée — c'est précisément ce que fait
+        # résout les versions à la volée — c'est exactement ce que fait
         # Vercel aujourd'hui, donc cette étape reproduit fidèlement la
         # production, y compris son défaut de reproductibilité.
         run: npm install
@@ -52,9 +52,7 @@ jobs:
         run: npm run build
 
       - name: Analyser le code
-        # Non bloquant pour l'instant : le fichier de configuration ESLint
-        # apparaît sous le nom "eslintrc.json", sans point initial, ce qui
-        # empêcherait ESLint de le lire. À rendre bloquant en supprimant
-        # cette ligne une fois le nom du fichier confirmé.
-        continue-on-error: true
+        # Bloquant depuis le renommage de .eslintrc.json : la configuration
+        # next/core-web-vitals est désormais lue et ne remonte aucune erreur
+        # sur le code existant. Toute nouvelle erreur fera échouer le job.
         run: npm run lint
