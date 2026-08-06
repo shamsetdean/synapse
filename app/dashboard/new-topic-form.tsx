@@ -1,9 +1,14 @@
 "use client";
+
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import AnalysisProgress from "./analysis-progress";
 import styles from "./dashboard.module.css";
+
+// Le matching parcourt chaque mot-clé pour chaque article ingéré : sans borne,
+// une saisie massive alourdirait durablement l'ingestion pour tous.
+const MAX_KEYWORDS = 50;
 
 export default function NewTopicForm() {
   const [name, setName] = useState("");
@@ -23,6 +28,7 @@ export default function NewTopicForm() {
     if (!name.trim()) return;
     setLoading(true);
     setError(null);
+
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -31,39 +37,82 @@ export default function NewTopicForm() {
       setLoading(false);
       return;
     }
+
+    const keywordList = Array.from(
+      new Set(
+        keywords
+          .split(",")
+          .map((k) => k.trim())
+          .filter(Boolean),
+      ),
+    );
+
+    if (keywordList.length > MAX_KEYWORDS) {
+      setError(`Limitez-vous à ${MAX_KEYWORDS} mots-clés par sujet.`);
+      setLoading(false);
+      return;
+    }
+
     const { data: topic, error: topicError } = await supabase
       .from("topics")
       .insert({ user_id: user.id, name: name.trim() })
       .select()
       .single();
+
     if (topicError || !topic) {
       setError("Impossible de créer le sujet.");
       setLoading(false);
       return;
     }
-    const keywordList = keywords
-      .split(",")
-      .map((k) => k.trim())
-      .filter(Boolean);
+
     if (keywordList.length > 0) {
-      await supabase
+      // Le retour d'erreur était ignoré : un échec laissait un sujet sans
+      // aucun mot-clé, qui ne correspondait donc jamais à aucun article, sans
+      // que rien ne l'indique à l'utilisateur.
+      const { error: keywordError } = await supabase
         .from("keywords")
         .insert(keywordList.map((term) => ({ topic_id: topic.id, term })));
+
+      if (keywordError) {
+        setError(
+          "Le sujet a été créé mais ses mots-clés n'ont pas pu être enregistrés.",
+        );
+        setLoading(false);
+        router.refresh();
+        return;
+      }
     }
+
+    // Rafraîchissement immédiat : le sujet apparaît dans la liste en dessous
+    // pendant que l'analyse tourne, au lieu d'attendre la fin de celle-ci.
+    // C'est le seul router.refresh() qui existait auparavant, et il n'était
+    // appelé que depuis handleAnalysisComplete, soit une trentaine de secondes
+    // plus tard.
+    router.refresh();
 
     setAnalyzing({
       id: topic.id,
       name: topic.name,
-      keywordsLabel: keywordList.length > 0 ? keywordList.join(", ") : "Aucun mot-clé",
+      keywordsLabel:
+        keywordList.length > 0 ? keywordList.join(", ") : "Aucun mot-clé",
     });
-
     setName("");
     setKeywords("");
     setLoading(false);
 
-    supabase.functions.invoke("analyze-topic", {
-      body: { topic_id: topic.id },
-    });
+    // L'appel n'était pas attendu : un échec (réseau, CORS, 401) passait
+    // inaperçu et laissait l'écran de progression tourner dans le vide.
+    const { error: invokeError } = await supabase.functions.invoke(
+      "analyze-topic",
+      { body: { topic_id: topic.id } },
+    );
+
+    if (invokeError) {
+      setError(
+        "Le sujet a été créé, mais l'analyse n'a pas pu être lancée. Elle reprendra à la prochaine collecte automatique.",
+      );
+      setAnalyzing(null);
+    }
   }
 
   function handleAnalysisComplete() {
@@ -94,8 +143,10 @@ export default function NewTopicForm() {
           onChange={(e) => setName(e.target.value)}
           placeholder="Ex. Intelligence artificielle"
           className={styles.input}
+          maxLength={120}
         />
       </div>
+
       <div className={styles.fieldLast}>
         <label className={styles.label} htmlFor="topic-keywords">
           Mots-clés (séparés par des virgules)
@@ -108,11 +159,13 @@ export default function NewTopicForm() {
           className={styles.input}
         />
       </div>
+
       {error && (
         <p style={{ color: "var(--danger)", fontSize: 13, marginBottom: 14 }}>
           {error}
         </p>
       )}
+
       <button type="submit" disabled={loading} className={styles.btnPrimary}>
         {loading ? "Création..." : "Créer le sujet"}
       </button>
