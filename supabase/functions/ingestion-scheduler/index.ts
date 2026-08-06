@@ -34,6 +34,13 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const INGEST_TOKEN = Deno.env.get("INGEST_TOKEN") ?? "";
 
+// Nombre de sources personnalisées traitées par cycle. Toutes les traiter
+// d'un coup dépassait le temps d'exécution autorisé dès quelques dizaines de
+// sources. Les moins récemment synchronisées passent en premier : traiter une
+// source la renvoie en fin de file, aucune ne peut donc être oubliée et aucun
+// état supplémentaire n'est à conserver.
+const USER_SOURCES_PER_RUN = 30;
+
 const RSS_COMPATIBLE_TYPES = [
   "rss",
   "website",
@@ -324,35 +331,48 @@ async function processItems(
   articleInsertBase: Record<string, unknown>,
   topics: { id: string; keywords: { term: string }[] | null }[],
 ) {
-  let inserted = 0;
-  let matches = 0;
+  const usable = items.filter((item) => item.title && item.link);
+  if (usable.length === 0) return { inserted: 0, matches: 0 };
 
-  for (const item of items) {
-    if (!item.title || !item.link) continue;
+  // Une même adresse peut apparaître deux fois dans un flux mal formé.
+  const seen = new Set<string>();
+  const rows: Record<string, unknown>[] = [];
+  for (const item of usable) {
+    if (seen.has(item.link)) continue;
+    seen.add(item.link);
+    rows.push({
+      ...articleInsertBase,
+      canonical_url: item.link,
+      title: item.title,
+      content_snippet: item.description,
+      published_at: item.publishedAt.toISOString(),
+      language: detectLanguage(`${item.title} ${item.description}`),
+    });
+  }
 
-    const { data: article } = await supabase
-      .from("articles")
-      .upsert(
-        {
-          ...articleInsertBase,
-          canonical_url: item.link,
-          title: item.title,
-          content_snippet: item.description,
-          published_at: item.publishedAt.toISOString(),
-          language: detectLanguage(`${item.title} ${item.description}`),
-        },
-        { onConflict: "canonical_url", ignoreDuplicates: true },
-      )
-      .select()
-      .maybeSingle();
+  // Un seul appel pour tout le flux au lieu d'un par article. Sur une
+  // vingtaine d'articles, cela remplace une vingtaine d'allers-retours.
+  //
+  // NOTE : voir l'en-tête de fichier. ignoreDuplicates est conservé, donc
+  // seuls les articles réellement insérés sont renvoyés et le matching saute
+  // encore tout article déjà présent en base. Défaut fonctionnel connu,
+  // traité au point 5 du plan, délibérément non modifié ici.
+  const { data: inserted, error: upsertError } = await supabase
+    .from("articles")
+    .upsert(rows, { onConflict: "canonical_url", ignoreDuplicates: true })
+    .select("id, title, content_snippet");
 
-    // NOTE : voir l'en-tête de fichier. Ce "continue" saute le matching pour
-    // tout article déjà présent en base. Défaut fonctionnel connu, traité au
-    // point 5 du plan, délibérément non modifié dans ce correctif de sécurité.
-    if (!article) continue;
-    inserted++;
+  if (upsertError) {
+    console.error("ingestion-scheduler : écriture des articles", upsertError);
+    return { inserted: 0, matches: 0 };
+  }
 
-    const haystack = `${item.title} ${item.description}`.toLowerCase();
+  const insertedRows = inserted ?? [];
+  const links: Record<string, unknown>[] = [];
+
+  for (const article of insertedRows) {
+    const haystack =
+      `${article.title ?? ""} ${article.content_snippet ?? ""}`.toLowerCase();
 
     for (const topic of topics) {
       const topicKeywords = (topic.keywords as { term: string }[] | null) ?? [];
@@ -361,16 +381,30 @@ async function processItems(
         .filter((term) => haystack.includes(term.toLowerCase()));
 
       if (matched.length > 0) {
-        await supabase.from("article_topics").upsert(
-          { article_id: article.id, topic_id: topic.id, matched_keywords: matched },
-          { onConflict: "article_id,topic_id", ignoreDuplicates: true },
-        );
-        matches++;
+        links.push({
+          article_id: article.id,
+          topic_id: topic.id,
+          matched_keywords: matched,
+        });
       }
     }
   }
 
-  return { inserted, matches };
+  if (links.length > 0) {
+    const { error: linkError } = await supabase
+      .from("article_topics")
+      .upsert(links, {
+        onConflict: "article_id,topic_id",
+        ignoreDuplicates: true,
+      });
+
+    if (linkError) {
+      console.error("ingestion-scheduler : écriture des liens", linkError);
+      return { inserted: insertedRows.length, matches: 0 };
+    }
+  }
+
+  return { inserted: insertedRows.length, matches: links.length };
 }
 
 // --- Fonction ----------------------------------------------------------------
@@ -410,18 +444,52 @@ Deno.serve(async (req) => {
       .eq("active", true)
       .eq("type", "rss");
 
+    // Un seul appel pour tous les sujets actifs, groupés ensuite par
+    // utilisateur. Auparavant chaque source personnalisée déclenchait sa
+    // propre requête de sujets, soit autant d'allers-retours que de sources.
     const { data: allActiveTopics } = await supabase
       .from("topics")
-      .select("id, keywords(term)")
+      .select("id, user_id, keywords(term)")
       .eq("status", "active");
 
-    for (const source of sources ?? []) {
+    const topicsByUser = new Map<
+      string,
+      { id: string; keywords: { term: string }[] | null }[]
+    >();
+    for (const topic of allActiveTopics ?? []) {
+      const key = topic.user_id as string;
+      const list = topicsByUser.get(key) ?? [];
+      list.push(topic);
+      topicsByUser.set(key, list);
+    }
+
+    const sourceList = sources ?? [];
+
+    // Récupération simultanée : le temps de collecte passe de la somme des
+    // temps de réponse au plus lent d'entre eux. allSettled plutôt que all,
+    // pour qu'un flux indisponible n'entraîne pas les autres.
+    const nativeFetches = await Promise.allSettled(
+      sourceList.map((source) =>
+        fetch(source.url, { signal: AbortSignal.timeout(TIMEOUT_MS) }).then(
+          (response) => response.text(),
+        ),
+      ),
+    );
+
+    for (let i = 0; i < sourceList.length; i++) {
+      const source = sourceList[i];
+      const result = nativeFetches[i];
+
+      if (result.status === "rejected") {
+        console.error(
+          `Erreur d'ingestion pour ${source.url} :`,
+          String(result.reason),
+        );
+        continue;
+      }
+
       try {
-        const response = await fetch(source.url, {
-          signal: AbortSignal.timeout(TIMEOUT_MS),
-        });
-        const xml = await response.text();
-        const items = parseRss(xml);
+        const items = parseRss(result.value);
         const { inserted, matches } = await processItems(
           supabase,
           items,
@@ -431,7 +499,7 @@ Deno.serve(async (req) => {
         totalArticlesInserted += inserted;
         totalTopicMatches += matches;
       } catch (err) {
-        console.error(`Erreur d'ingestion pour ${source.url} :`, err);
+        console.error(`Erreur de traitement pour ${source.url} :`, err);
       }
     }
 
@@ -443,30 +511,44 @@ Deno.serve(async (req) => {
       .in("type", RSS_COMPATIBLE_TYPES);
 
     const now = Date.now();
-    const dueSources = (userSources ?? []).filter((s) => {
+    const allDue = (userSources ?? []).filter((s) => {
       if (!s.last_synced_at) return true;
       const elapsedMin =
         (now - new Date(s.last_synced_at).getTime()) / 60000;
       return elapsedMin >= s.sync_frequency_minutes;
     });
 
-    for (const source of dueSources) {
-      try {
-        // URL saisie par un utilisateur : passage obligatoire par le garde-fou.
-        const xml = await safeFetchText(source.url);
-        const items = parseRss(xml);
+    // File d'attente : les moins récemment synchronisées d'abord, celles qui
+    // ne l'ont jamais été en tête. Traiter une source la renvoie en queue,
+    // donc la file tourne d'elle-même et aucune source n'est oubliée.
+    const dueSources = allDue
+      .sort((a, b) => {
+        const ta = a.last_synced_at ? new Date(a.last_synced_at).getTime() : 0;
+        const tb = b.last_synced_at ? new Date(b.last_synced_at).getTime() : 0;
+        return ta - tb;
+      })
+      .slice(0, USER_SOURCES_PER_RUN);
 
-        const { data: userTopics } = await supabase
-          .from("topics")
-          .select("id, keywords(term)")
-          .eq("status", "active")
-          .eq("user_id", source.user_id);
+    // Récupération simultanée du paquet, garde-fou anti-SSRF inclus : chaque
+    // adresse passe toujours par safeFetchText.
+    const userFetches = await Promise.allSettled(
+      dueSources.map((source) => safeFetchText(source.url)),
+    );
+
+    for (let i = 0; i < dueSources.length; i++) {
+      const source = dueSources[i];
+      const result = userFetches[i];
+
+      try {
+        if (result.status === "rejected") throw result.reason;
+
+        const items = parseRss(result.value);
 
         const { inserted, matches } = await processItems(
           supabase,
           items,
           { user_source_id: source.id },
-          userTopics ?? [],
+          topicsByUser.get(source.user_id as string) ?? [],
         );
 
         totalArticlesInserted += inserted;
@@ -503,6 +585,9 @@ Deno.serve(async (req) => {
             ? "Cette adresse n'est pas autorisée."
             : "Impossible de récupérer ce flux.";
 
+        // last_synced_at est mis à jour même en cas d'échec : sans cela, une
+        // source durablement en panne resterait en tête de file et bloquerait
+        // toutes les autres à chaque cycle.
         await supabase
           .from("user_sources")
           .update({
@@ -516,9 +601,11 @@ Deno.serve(async (req) => {
 
     return new Response(
       JSON.stringify({
-        sourcesProcessed: (sources?.length ?? 0) + dueSources.length,
+        sourcesProcessed: sourceList.length + dueSources.length,
         articlesInserted: totalArticlesInserted,
         topicMatches: totalTopicMatches,
+        userSourcesQueued: allDue.length,
+        userSourcesRemaining: Math.max(0, allDue.length - dueSources.length),
       }),
       { headers: { "Content-Type": "application/json" } },
     );
