@@ -1,6 +1,6 @@
 # Synapse
 
-Plateforme de veille informationnelle intelligente.
+Plateforme de veille informationnelle intelligente  (beta)).
 
 ## Principe
 
