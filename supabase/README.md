@@ -52,6 +52,16 @@ Elles sont écrites pour supporter une seconde exécution sans dommage :
 `drop policy if exists` avant chaque création, `create or replace` sur les
 fonctions, `revoke` et `grant` idempotents par nature.
 
+## Exclusion de la compilation du site
+
+Ces fichiers sont du code Deno : globales, imports par adresse web et runtime
+différents de ceux du navigateur. Le compilateur TypeScript du site ne sait
+pas les lire.
+
+Le dossier est donc exclu dans `tsconfig.json` et dans `eslint.config.mjs`.
+Sans cette exclusion, `next build` échoue sur `Cannot find name 'Deno'` et le
+déploiement est refusé.
+
 ## Ce qui n'est pas ici
 
 Le schéma initial des tables, créé avant le 6 août 2026 et jamais versionné.
