@@ -131,42 +131,50 @@ export default function NewTopicForm() {
     );
   }
 
-  return (
-    <form onSubmit={handleSubmit} className={styles.panel}>
-      <div className={styles.field}>
-        <label className={styles.label} htmlFor="topic-name">
-          Nom du sujet
-        </label>
-        <input
-          id="topic-name"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="Ex. Intelligence artificielle"
-          className={styles.input}
-          maxLength={120}
-        />
-      </div>
+  const disabled = loading || !name.trim();
 
-      <div className={styles.fieldLast}>
-        <label className={styles.label} htmlFor="topic-keywords">
-          Mots-clés (séparés par des virgules)
-        </label>
-        <input
-          id="topic-keywords"
-          value={keywords}
-          onChange={(e) => setKeywords(e.target.value)}
-          placeholder="Ex. GPT, Claude, Gemini"
-          className={styles.input}
-        />
+  return (
+    <form onSubmit={handleSubmit} className={styles.formPanel}>
+      <div className={styles.formGrid}>
+        <div className={styles.formField}>
+          <label className={styles.formLabel} htmlFor="topic-name">
+            Nom du sujet
+          </label>
+          <input
+            id="topic-name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="ex. Informatique quantique"
+            className={styles.formInput}
+            maxLength={120}
+          />
+        </div>
+
+        <div className={styles.formField}>
+          <label className={styles.formLabel} htmlFor="topic-keywords">
+            Mots-clés (séparés par des virgules)
+          </label>
+          <input
+            id="topic-keywords"
+            value={keywords}
+            onChange={(e) => setKeywords(e.target.value)}
+            placeholder="ex. qubit, cryptographie post-quantique"
+            className={styles.formInput}
+          />
+        </div>
       </div>
 
       {error && (
-        <p style={{ color: "var(--danger)", fontSize: 13, marginBottom: 14 }}>
-          {error}
-        </p>
+        <p style={{ color: "var(--danger)", fontSize: 13 }}>{error}</p>
       )}
 
-      <button type="submit" disabled={loading} className={styles.btnPrimary}>
+      <button
+        type="submit"
+        disabled={disabled}
+        className={`${styles.createBtn} ${
+          disabled ? styles.createBtnDisabled : ""
+        }`}
+      >
         {loading ? "Création..." : "Créer le sujet"}
       </button>
     </form>

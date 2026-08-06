@@ -16,6 +16,8 @@ type FeedArticle = {
   ageHours: number;
 };
 
+// Interpolation de couleur de la charte, entre l'extrémité froide et
+// l'accent, sur une fenêtre de soixante-douze heures.
 function lerp(a: number, b: number, t: number): number {
   return a + (b - a) * t;
 }
@@ -28,80 +30,67 @@ function hexToRgb(hex: string): [number, number, number] {
 function mixColor(hexA: string, hexB: string, t: number): string {
   const a = hexToRgb(hexA);
   const b = hexToRgb(hexB);
-  const r = Math.round(lerp(a[0], b[0], t));
-  const g = Math.round(lerp(a[1], b[1], t));
-  const bl = Math.round(lerp(a[2], b[2], t));
-  return `rgb(${r},${g},${bl})`;
+  return `rgb(${Math.round(lerp(a[0], b[0], t))},${Math.round(
+    lerp(a[1], b[1], t),
+  )},${Math.round(lerp(a[2], b[2], t))})`;
 }
 
+// Format de la charte : minutes en deçà d'une heure, heures en deçà d'un
+// jour, puis jours et heures.
 function ageLabel(hours: number): string {
   if (hours < 1) return `${Math.round(hours * 60)} min`;
   if (hours < 24) return `${Math.round(hours)} h`;
-  return `${Math.floor(hours / 24)} j`;
+  return `${Math.floor(hours / 24)} j ${Math.round(hours % 24)} h`;
 }
-
-const COLUMN_COUNT = 3;
 
 export default function ArticleFeed({
   articles,
 }: {
   articles: FeedArticle[];
 }) {
-  if (articles.length === 0) {
-    return (
-      <p className={styles.emptyState}>
-        Aucun article pour l&apos;instant. L&apos;ingestion n&apos;a peut-être
-        pas encore trouvé de correspondance avec vos mots-clés.
-      </p>
-    );
-  }
-
-  const columns: FeedArticle[][] = Array.from({ length: COLUMN_COUNT }, () => []);
-  articles.forEach((article, i) => {
-    columns[i % COLUMN_COUNT].push(article);
-  });
-
   return (
-    <div className={styles.neuronColumns}>
-      {columns.map((columnArticles, colIndex) => (
-        <div key={colIndex} className={styles.neuronColumn}>
-          {columnArticles.map((article, rowIndex) => {
-            const hours = article.ageHours;
-            const fresh = Math.max(0, Math.min(1, 1 - hours / 72));
-            const dotColor = mixColor("#4a473f", "#8b7cf6", fresh);
-            const archived = hours >= 72;
-            const isLast = rowIndex === columnArticles.length - 1;
+    <div className={styles.articleGrid}>
+      {articles.map((article, i) => {
+        const fresh = Math.max(0, Math.min(1, 1 - article.ageHours / 72));
+        const color = mixColor("#4a473f", "#8b7cf6", fresh);
+        const archived = article.ageHours >= 72;
 
-            return (
-              <div key={article.id} className={styles.neuronRowWrap} style={{ opacity: archived ? 0.55 : 1 }}>
-                <a
-                  href={article.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className={styles.neuronPill}
-                >
-                  <span className={styles.neuronRowTitle}>{article.title}</span>
-                  <span className={styles.neuronRowMeta}>
-                    {article.sourceName} · {ageLabel(hours)}
-                  </span>
-                </a>
+        return (
+          <a
+            key={article.id}
+            href={article.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={`${styles.articleCard} ${
+              archived ? styles.articleCardArchived : ""
+            }`}
+            style={{ animationDelay: `${(i % 12) * 0.04}s` }}
+          >
+            <div className={styles.articleSource}>{article.sourceName}</div>
+            <div className={styles.articleTitle}>{article.title}</div>
 
-                <div className={styles.neuronRail}>
-                  {!isLast && <div className={styles.neuronRailLine} />}
-                  <span className={styles.neuronDot} style={{ background: dotColor }} />
-                </div>
+            <div className={styles.gaugeRow}>
+              <div className={styles.gaugeLabel}>FRAÎCHEUR</div>
+              <div className={styles.gaugeTrack}>
+                <div
+                  className={styles.gaugeFill}
+                  style={{
+                    width: `${(fresh * 100).toFixed(0)}%`,
+                    background: color,
+                  }}
+                />
               </div>
-            );
-          })}
+            </div>
 
-          {columnArticles.length > 1 && (
-            <div
-              className={styles.neuronPulse}
-              style={{ animationDelay: `${colIndex * 0.6}s` }}
-            />
-          )}
-        </div>
-      ))}
+            <div className={styles.articleAgeRow}>
+              <span className={styles.articleAge} style={{ color }}>
+                {ageLabel(article.ageHours)}
+                {archived ? " (archivé)" : ""}
+              </span>
+            </div>
+          </a>
+        );
+      })}
     </div>
   );
 }

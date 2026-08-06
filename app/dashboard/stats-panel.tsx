@@ -1,5 +1,4 @@
 import { createClient } from "@/lib/supabase/server";
-import StatsCharts from "./stats-charts";
 import styles from "./dashboard.module.css";
 
 type DashboardStats = {
@@ -13,77 +12,202 @@ type DashboardStats = {
   daily_evolution: { day: string; count: number }[];
 };
 
+// Couleurs de langue de la charte.
+const LANG_COLORS: Record<string, string> = {
+  fr: "#8b7cf6",
+  en: "#6d5fd0",
+};
+const LANG_FALLBACK = "#c9c2b0";
+
 export default async function StatsPanel({ userId }: { userId: string }) {
   const supabase = await createClient();
-  const { data } = await supabase.rpc("get_dashboard_stats", {
+  const { data, error } = await supabase.rpc("get_dashboard_stats", {
     p_user_id: userId,
   });
 
   const stats = data as DashboardStats | null;
 
-  if (!stats) {
+  if (error || !stats) {
     return (
-      <div className={styles.panel}>
-        <p className={styles.emptyState}>Statistiques indisponibles.</p>
+      <div className={styles.chartSection}>
+        <p className={styles.emptyState}>
+          Statistiques indisponibles pour le moment.
+        </p>
       </div>
     );
   }
 
-  const readRate =
-    stats.total_found > 0
-      ? Math.round((stats.total_read / stats.total_found) * 100)
-      : 0;
-
-  const cards = [
-    { label: "Articles trouvés", value: stats.total_found },
-    { label: "Articles lus", value: stats.total_read },
-    { label: "Favoris", value: stats.total_favorited },
-    { label: "Ignorés", value: stats.total_dismissed },
-    { label: "Nouveaux (24h)", value: stats.new_last_24h },
-    { label: "Taux de lecture", value: `${readRate}%` },
+  // Les cinq compteurs de la charte. Les trois registres qui ne sont alimentés
+  // par aucune action de l'interface portent une mention explicite : ils
+  // afficheraient sinon un zéro permanent que rien n'expliquerait.
+  const counters = [
+    { label: "TOTAL TROUVÉ", value: stats.total_found, color: "var(--ink)" },
+    {
+      label: "TOTAL LU",
+      value: stats.total_read,
+      color: "var(--ink-dim)",
+      note: "Registre non alimenté",
+    },
+    {
+      label: "EN FAVORI",
+      value: stats.total_favorited,
+      color: "var(--ink-dim)",
+      note: "Registre non alimenté",
+    },
+    {
+      label: "ÉCARTÉ",
+      value: stats.total_dismissed,
+      color: "var(--ink-dim)",
+      note: "Registre non alimenté",
+    },
+    {
+      label: "NOUVEAUTÉS (<24H)",
+      value: stats.new_last_24h,
+      color: "var(--violet-deep)",
+    },
   ];
 
+  // La fonction de statistiques ne renvoie que les jours ayant au moins un
+  // article. La charte prévoit quatorze emplacements : les jours vides sont
+  // complétés ici, sans quoi deux jours de données produisaient deux barres
+  // occupant toute la largeur.
+  const byDay = new Map(
+    (stats.daily_evolution ?? []).map((d) => [d.day.slice(0, 10), d.count]),
+  );
+  const today = new Date();
+  const daily = Array.from({ length: 14 }, (_, i) => {
+    const d = new Date(today);
+    d.setDate(d.getDate() - (13 - i));
+    const key = d.toISOString().slice(0, 10);
+    return { day: key, count: byDay.get(key) ?? 0 };
+  });
+  const maxDaily = Math.max(1, ...daily.map((d) => d.count));
+  const hasDaily = daily.some((d) => d.count > 0);
+
+  const langs = (stats.by_language ?? []).filter((l) => l.count > 0);
+  const totalLang = langs.reduce((sum, l) => sum + l.count, 0);
+  // Les positions de départ de chaque secteur sont calculées à partir des
+  // éléments précédents, sans variable d'accumulation : la règle
+  // d'immuabilité de React interdit de modifier une variable extérieure
+  // pendant le rendu. Le nombre de langues étant très faible, le coût est nul.
+  const langSlices = langs.map((l, i) => {
+    const key = (l.language ?? "").toLowerCase();
+    const color = LANG_COLORS[key] ?? LANG_FALLBACK;
+    const before = langs
+      .slice(0, i)
+      .reduce((sum, prev) => sum + prev.count, 0);
+    const start = totalLang > 0 ? (before / totalLang) * 100 : 0;
+    const pct = totalLang > 0 ? (l.count / totalLang) * 100 : 0;
+    return {
+      label: (l.language ?? "??").toUpperCase(),
+      color,
+      slice: `${color} ${start.toFixed(1)}% ${(start + pct).toFixed(1)}%`,
+      pctLabel: `${Math.round(pct)}%`,
+    };
+  });
+
+  const sourceStats = stats.by_source ?? [];
+  const maxSource = Math.max(1, ...sourceStats.map((s) => s.count));
+
   return (
-    <div>
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(3, 1fr)",
-          gap: 12,
-          marginBottom: 20,
-        }}
-      >
-        {cards.map((card) => (
-          <div
-            key={card.label}
-            style={{
-              background: "var(--card)",
-              border: "1px solid var(--line)",
-              borderRadius: 14,
-              padding: "14px 16px",
-            }}
-          >
-            <div
-              style={{
-                fontSize: 22,
-                fontWeight: 600,
-                fontFamily: "'Courier New', monospace",
-              }}
-            >
-              {card.value}
+    <div className={styles.configStack}>
+      <div className={styles.counterGrid}>
+        {counters.map((c) => (
+          <div key={c.label} className={styles.counterCard}>
+            <div className={styles.counterLabel}>{c.label}</div>
+            <div className={styles.counterValue} style={{ color: c.color }}>
+              {c.value}
             </div>
-            <div style={{ fontSize: 11, color: "var(--ink-dim)", marginTop: 4 }}>
-              {card.label}
-            </div>
+            {c.note && <div className={styles.counterNote}>{c.note}</div>}
           </div>
         ))}
       </div>
 
-      <StatsCharts
-        byLanguage={stats.by_language}
-        bySource={stats.by_source}
-        dailyEvolution={stats.daily_evolution}
-      />
+      <section className={styles.chartSection}>
+        <div className={styles.chartHead}>
+          <div className={styles.progressDot} />
+          <div className={styles.chartTitle}>
+            ÉVOLUTION QUOTIDIENNE — 14 DERNIERS JOURS
+          </div>
+        </div>
+        {!hasDaily ? (
+          <p className={styles.emptyState}>Pas encore assez de données.</p>
+        ) : (
+          <div className={styles.dailyChart}>
+            {daily.map((d, i) => (
+              <div key={d.day} className={styles.dailyCol}>
+                <div
+                  className={styles.dailyBar}
+                  style={{
+                    height: `${((d.count / maxDaily) * 100).toFixed(0)}%`,
+                    animationDelay: `${i * 0.04}s`,
+                  }}
+                />
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
+      <div className={styles.chartPair}>
+        <section className={styles.chartSection}>
+          <div className={styles.chartTitle}>RÉPARTITION PAR LANGUE</div>
+          {langSlices.length === 0 ? (
+            <p className={styles.emptyState}>Aucune donnée.</p>
+          ) : (
+            <div className={styles.langRow}>
+              <div
+                className={styles.langDonut}
+                style={{
+                  background: `conic-gradient(${langSlices
+                    .map((l) => l.slice)
+                    .join(",")})`,
+                }}
+              />
+              <div className={styles.langLegend}>
+                {langSlices.map((l) => (
+                  <div key={l.label} className={styles.langItem}>
+                    <div
+                      className={styles.langDot}
+                      style={{ background: l.color }}
+                    />
+                    <div className={styles.langName}>{l.label}</div>
+                    <div className={styles.langPct}>{l.pctLabel}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </section>
+
+        <section className={styles.chartSection}>
+          <div className={styles.chartTitle}>RÉPARTITION PAR SOURCE</div>
+          {sourceStats.length === 0 ? (
+            <p className={styles.emptyState}>Aucune donnée.</p>
+          ) : (
+            sourceStats.map((s, i) => (
+              <div key={s.name} className={styles.sourceStatRow}>
+                <div className={styles.sourceStatLeft}>
+                  <div className={styles.sourceStatName}>{s.name}</div>
+                  <div className={styles.sourceStatTrack}>
+                    <div
+                      className={styles.sourceStatBar}
+                      style={{
+                        width: `${((s.count / maxSource) * 100).toFixed(0)}%`,
+                        animationDelay: `${i * 0.05}s`,
+                      }}
+                    />
+                  </div>
+                </div>
+                <div className={styles.sourceStatCount}>{s.count}</div>
+              </div>
+            ))
+          )}
+          <div className={styles.chartNote}>
+            Exclut les sources personnalisées non natives.
+          </div>
+        </section>
+      </div>
     </div>
   );
 }

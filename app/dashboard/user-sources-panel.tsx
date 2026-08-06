@@ -35,19 +35,29 @@ const SOURCE_TYPES = [
   { value: "other", label: "Autre" },
 ];
 
-const RSS_COMPATIBLE = new Set(["rss", "website", "blog", "newsletter", "youtube", "podcast"]);
+const RSS_COMPATIBLE = new Set([
+  "rss",
+  "website",
+  "blog",
+  "newsletter",
+  "youtube",
+  "podcast",
+]);
 
 const SYNC_OPTIONS = [
   { value: 20, label: "Toutes les 20 min" },
   { value: 60, label: "Toutes les heures" },
   { value: 360, label: "Toutes les 6h" },
-  { value: 1440, label: "1 fois par jour" },
+  { value: 1440, label: "Une fois par jour" },
 ];
 
 function syncLabel(source: UserSource): string {
-  if (!RSS_COMPATIBLE.has(source.type)) return "Non connecté";
+  if (!RSS_COMPATIBLE.has(source.type)) return "Non synchronisé";
+  if (!source.active) return "Désactivée";
   if (!source.last_synced_at) return "En attente de sync";
-  const minutesAgo = Math.round((Date.now() - new Date(source.last_synced_at).getTime()) / 60000);
+  const minutesAgo = Math.round(
+    (Date.now() - new Date(source.last_synced_at).getTime()) / 60000,
+  );
   if (minutesAgo < 1) return "synchro. à l'instant";
   if (minutesAgo < 60) return `synchro. il y a ${minutesAgo} min`;
   return `synchro. il y a ${Math.round(minutesAgo / 60)} h`;
@@ -66,27 +76,38 @@ export default function UserSourcesPanel({
   const [language, setLanguage] = useState("");
   const [country, setCountry] = useState("");
   const [syncFrequency, setSyncFrequency] = useState(60);
-  const [testResult, setTestResult] = useState<{ ok: boolean; message: string } | null>(null);
+  const [testResult, setTestResult] = useState<{
+    ok: boolean;
+    message: string;
+  } | null>(null);
   const [testingForm, setTestingForm] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [rowTestState, setRowTestState] = useState<Record<string, "idle" | "testing" | "ok" | "error">>({});
+  const [error, setError] = useState<string | null>(null);
+  const [rowState, setRowState] = useState<
+    Record<string, "idle" | "testing" | "ok" | "error">
+  >({});
   const supabase = createClient();
   const router = useRouter();
+
+  const rssCompatible = RSS_COMPATIBLE.has(type);
 
   async function handleFormTest() {
     if (!url.trim()) return;
     setTestingForm(true);
     setTestResult(null);
     try {
-      const { data, error } = await supabase.functions.invoke("test-source", {
-        body: { url: url.trim() },
-      });
-      if (error || !data?.ok) {
+      const { data, error: err } = await supabase.functions.invoke(
+        "test-source",
+        { body: { url: url.trim() } },
+      );
+      if (err || !data?.ok) {
         setTestResult({ ok: false, message: data?.error ?? "Échec du test." });
       } else {
         setTestResult({
           ok: true,
-          message: `${data.feedTitle ?? "Flux valide"} — ${data.articleCount} article(s) détecté(s).`,
+          message: `${data.feedTitle ?? "Flux valide"} — ${
+            data.articleCount
+          } article(s) détecté(s).`,
         });
       }
     } catch {
@@ -99,16 +120,18 @@ export default function UserSourcesPanel({
     e.preventDefault();
     if (!name.trim() || !url.trim()) return;
     setSaving(true);
+    setError(null);
 
     const {
       data: { user },
     } = await supabase.auth.getUser();
     if (!user) {
+      setError("Session expirée, reconnectez-vous.");
       setSaving(false);
       return;
     }
 
-    const { data: newSource } = await supabase
+    const { data: newSource, error: err } = await supabase
       .from("user_sources")
       .insert({
         user_id: user.id,
@@ -124,41 +147,51 @@ export default function UserSourcesPanel({
       .select()
       .single();
 
-    if (newSource) {
-      setSources((prev) => [newSource as UserSource, ...prev]);
+    setSaving(false);
+
+    // Les retours d'erreur étaient ignorés : un refus produisait une interface
+    // affichant un ajout qui n'avait pas eu lieu.
+    if (err || !newSource) {
+      setError("La source n'a pas pu être ajoutée.");
+      return;
     }
 
+    setSources((prev) => [newSource as UserSource, ...prev]);
     setName("");
     setUrl("");
     setCategory("");
     setLanguage("");
     setCountry("");
     setTestResult(null);
-    setSaving(false);
     router.refresh();
   }
 
   async function testRow(source: UserSource) {
-    setRowTestState((s) => ({ ...s, [source.id]: "testing" }));
+    setRowState((s) => ({ ...s, [source.id]: "testing" }));
     try {
-      const { data, error } = await supabase.functions.invoke("test-source", {
-        body: { url: source.url },
-      });
-      const ok = !error && data?.ok;
-      setRowTestState((s) => ({ ...s, [source.id]: ok ? "ok" : "error" }));
-      setTimeout(() => {
-        setRowTestState((s) => ({ ...s, [source.id]: "idle" }));
-      }, 2200);
+      const { data, error: err } = await supabase.functions.invoke(
+        "test-source",
+        { body: { url: source.url } },
+      );
+      const ok = !err && data?.ok;
+      setRowState((s) => ({ ...s, [source.id]: ok ? "ok" : "error" }));
     } catch {
-      setRowTestState((s) => ({ ...s, [source.id]: "error" }));
-      setTimeout(() => {
-        setRowTestState((s) => ({ ...s, [source.id]: "idle" }));
-      }, 2200);
+      setRowState((s) => ({ ...s, [source.id]: "error" }));
     }
+    setTimeout(() => {
+      setRowState((s) => ({ ...s, [source.id]: "idle" }));
+    }, 2200);
   }
 
   async function toggleActive(source: UserSource) {
-    await supabase.from("user_sources").update({ active: !source.active }).eq("id", source.id);
+    const { error: err } = await supabase
+      .from("user_sources")
+      .update({ active: !source.active })
+      .eq("id", source.id);
+    if (err) {
+      setError("Le changement d'état n'a pas pu être enregistré.");
+      return;
+    }
     setSources((prev) =>
       prev.map((s) => (s.id === source.id ? { ...s, active: !s.active } : s)),
     );
@@ -167,170 +200,191 @@ export default function UserSourcesPanel({
   async function renameSource(source: UserSource) {
     const newName = prompt("Nouveau nom :", source.name);
     if (!newName || !newName.trim()) return;
-    await supabase.from("user_sources").update({ name: newName.trim() }).eq("id", source.id);
+    const { error: err } = await supabase
+      .from("user_sources")
+      .update({ name: newName.trim() })
+      .eq("id", source.id);
+    if (err) {
+      setError("Le renommage n'a pas pu être enregistré.");
+      return;
+    }
     setSources((prev) =>
-      prev.map((s) => (s.id === source.id ? { ...s, name: newName.trim() } : s)),
+      prev.map((s) =>
+        s.id === source.id ? { ...s, name: newName.trim() } : s,
+      ),
     );
   }
 
   async function deleteSource(source: UserSource) {
     if (!confirm(`Supprimer la source "${source.name}" ?`)) return;
-    await supabase.from("user_sources").delete().eq("id", source.id);
+    const { error: err } = await supabase
+      .from("user_sources")
+      .delete()
+      .eq("id", source.id);
+    if (err) {
+      setError("La suppression n'a pas pu être effectuée.");
+      return;
+    }
     setSources((prev) => prev.filter((s) => s.id !== source.id));
   }
 
-  const showsRssWarning = !RSS_COMPATIBLE.has(type);
-
   return (
-    <div>
-      <div className={styles.panel}>
-        <form onSubmit={handleSubmit}>
-          <div className={styles.field}>
-            <label className={styles.label}>Nom de la source</label>
-            <input
-              className={styles.input}
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Ex. TechCrunch"
-            />
+    <div className={styles.configStack}>
+      <form onSubmit={handleSubmit} className={styles.sourceForm}>
+        <div className={styles.sourceFormTitle}>AJOUTER UNE SOURCE</div>
+
+        <div className={styles.sourceFormGrid}>
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Nom de la source"
+            className={styles.sourceFormInput}
+            aria-label="Nom de la source"
+          />
+          <select
+            value={type}
+            onChange={(e) => setType(e.target.value)}
+            className={styles.sourceFormInput}
+            aria-label="Type de source"
+          >
+            {SOURCE_TYPES.map((t) => (
+              <option key={t.value} value={t.value}>
+                {t.label}
+              </option>
+            ))}
+          </select>
+          <input
+            value={url}
+            onChange={(e) => {
+              setUrl(e.target.value);
+              setTestResult(null);
+            }}
+            placeholder="URL du flux"
+            className={styles.sourceFormInput}
+            aria-label="URL du flux"
+          />
+          <input
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+            placeholder="Catégorie"
+            className={styles.sourceFormInput}
+            aria-label="Catégorie"
+          />
+          <input
+            value={language}
+            onChange={(e) => setLanguage(e.target.value)}
+            placeholder="Langue (ex. FR)"
+            maxLength={2}
+            className={styles.sourceFormInput}
+            aria-label="Langue"
+          />
+          <input
+            value={country}
+            onChange={(e) => setCountry(e.target.value)}
+            placeholder="Pays (ex. FR)"
+            maxLength={2}
+            className={styles.sourceFormInput}
+            aria-label="Pays"
+          />
+          <select
+            value={syncFrequency}
+            onChange={(e) => setSyncFrequency(Number(e.target.value))}
+            className={styles.sourceFormInput}
+            aria-label="Fréquence de synchronisation"
+          >
+            {SYNC_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {!rssCompatible && (
+          <div className={styles.chartNote}>
+            Ce type de source est enregistré mais n&apos;est pas encore
+            collecté.
           </div>
+        )}
 
-          <div className={styles.field}>
-            <label className={styles.label}>Type</label>
-            <select
-              className={styles.input}
-              value={type}
-              onChange={(e) => setType(e.target.value)}
-            >
-              {SOURCE_TYPES.map((t) => (
-                <option key={t.value} value={t.value}>
-                  {t.label}
-                </option>
-              ))}
-            </select>
+        {testResult && (
+          <div
+            className={styles.testResult}
+            style={{
+              color: testResult.ok ? "var(--violet-deep)" : "var(--danger)",
+            }}
+          >
+            {testResult.message}
           </div>
+        )}
 
-          <div className={styles.field}>
-            <label className={styles.label}>URL {RSS_COMPATIBLE.has(type) ? "(flux RSS)" : ""}</label>
-            <input
-              className={styles.input}
-              value={url}
-              onChange={(e) => {
-                setUrl(e.target.value);
-                setTestResult(null);
-              }}
-              placeholder="https://..."
-            />
+        {error && (
+          <div className={styles.testResult} style={{ color: "var(--danger)" }}>
+            {error}
           </div>
+        )}
 
-          {showsRssWarning && (
-            <p style={{ fontSize: 11, color: "var(--ink-dim)", marginBottom: 14 }}>
-              Ce type de source n&apos;est pas encore synchronisé automatiquement. Elle sera
-              enregistrée mais restera en attente d&apos;intégration.
-            </p>
-          )}
-
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-            <div className={styles.field}>
-              <label className={styles.label}>Catégorie</label>
-              <input
-                className={styles.input}
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-                placeholder="Ex. Tech"
-              />
-            </div>
-            <div className={styles.field}>
-              <label className={styles.label}>Langue</label>
-              <input
-                className={styles.input}
-                value={language}
-                onChange={(e) => setLanguage(e.target.value)}
-                placeholder="fr, en..."
-              />
-            </div>
-          </div>
-
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-            <div className={styles.field}>
-              <label className={styles.label}>Pays</label>
-              <input
-                className={styles.input}
-                value={country}
-                onChange={(e) => setCountry(e.target.value)}
-                placeholder="FR, US..."
-              />
-            </div>
-            <div className={styles.fieldLast}>
-              <label className={styles.label}>Fréquence de sync</label>
-              <select
-                className={styles.input}
-                value={syncFrequency}
-                onChange={(e) => setSyncFrequency(Number(e.target.value))}
-              >
-                {SYNC_OPTIONS.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          {RSS_COMPATIBLE.has(type) && (
-            <div style={{ marginBottom: 14 }}>
-              <button
-                type="button"
-                onClick={handleFormTest}
-                disabled={testingForm || !url.trim()}
-                className={styles.btnGhost}
-                style={{ width: "100%", justifyContent: "center" }}
-              >
-                {testingForm ? "Test en cours..." : "Tester la source"}
-              </button>
-              {testResult && (
-                <p
-                  style={{
-                    fontSize: 12,
-                    marginTop: 8,
-                    color: testResult.ok ? "var(--violet-deep)" : "var(--danger)",
-                  }}
-                >
-                  {testResult.message}
-                </p>
-              )}
-            </div>
-          )}
-
-          <button type="submit" disabled={saving} className={styles.btnPrimary}>
+        <div className={styles.sourceFormActions}>
+          <button
+            type="button"
+            onClick={handleFormTest}
+            disabled={testingForm || !url.trim() || !rssCompatible}
+            className={styles.btnTest}
+          >
+            {testingForm ? "Test en cours..." : "Tester la source"}
+          </button>
+          <button type="submit" disabled={saving} className={styles.btnAdd}>
             {saving ? "Ajout..." : "Ajouter la source"}
           </button>
-        </form>
-      </div>
+        </div>
+      </form>
 
       <div className={styles.sourceList}>
         {sources.length === 0 && (
-          <p className={styles.emptyState}>Aucune source personnalisée pour l&apos;instant.</p>
+          <p className={styles.emptyState}>
+            Aucune source personnalisée pour l&apos;instant.
+          </p>
         )}
+
         {sources.map((source) => {
-          const pending = !RSS_COMPATIBLE.has(source.type);
-          const testState = rowTestState[source.id] ?? "idle";
+          const unsupported = !RSS_COMPATIBLE.has(source.type);
+          const state = rowState[source.id] ?? "idle";
           const testLabel =
-            testState === "testing" ? "Test…" : testState === "ok" ? "✓ Connecté" : testState === "error" ? "Échec" : "Tester la connexion";
+            state === "testing"
+              ? "Test…"
+              : state === "ok"
+                ? "Connecté"
+                : state === "error"
+                  ? "Échec"
+                  : "Tester la connexion";
 
           return (
-            <div key={source.id} className={styles.sourceRow}>
+            <div
+              key={source.id}
+              className={`${styles.sourceRow} ${
+                source.active ? "" : styles.sourceRowInactive
+              }`}
+            >
               <div className={styles.sourceRowLeft}>
-                <div className={`${styles.sourceIcon} ${pending ? styles.sourceIconPending : ""}`}>
+                <div
+                  className={`${styles.sourceIcon} ${
+                    unsupported ? styles.sourceIconPending : ""
+                  }`}
+                >
                   {source.name[0]?.toUpperCase() ?? "?"}
                 </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
+                <div style={{ minWidth: 0 }}>
                   <div className={styles.sourceNameRow}>
                     <span className={styles.sourceName}>{source.name}</span>
                     <span className={styles.sourceTypeTag}>
-                      {SOURCE_TYPES.find((t) => t.value === source.type)?.label ?? source.type}
+                      {SOURCE_TYPES.find((t) => t.value === source.type)
+                        ?.label ?? source.type}
                     </span>
-                    {pending && <span className={styles.sourcePendingTag}>Extension prévue</span>}
+                    {unsupported && (
+                      <span className={styles.sourcePendingTag}>
+                        Non collecté pour l&apos;instant
+                      </span>
+                    )}
                   </div>
                   <div className={styles.sourceHandle}>{source.url}</div>
                 </div>
@@ -339,42 +393,51 @@ export default function UserSourcesPanel({
               <div className={styles.sourceRowRight}>
                 <div className={styles.reliabilityBlock}>
                   <div className={styles.reliabilityLabel}>FIABILITÉ</div>
-                  <div className={styles.reliabilityBarWrap}>
-                    <div
-                      className={`${styles.reliabilityBar} ${
-                        source.reliability_rating < 3.5 ? styles.reliabilityBarLow : ""
-                      }`}
-                      style={{ width: `${(source.reliability_rating / 5) * 100}%` }}
-                    />
+                  <div className={styles.reliabilityValue}>
+                    {source.reliability_rating} / 5
                   </div>
                 </div>
 
                 <div className={styles.syncStatus}>
-                  <div className={`${styles.syncDot} ${pending ? styles.syncDotPending : ""}`} />
+                  <div
+                    className={`${styles.syncDot} ${
+                      source.active && !unsupported ? "" : styles.syncDotPending
+                    }`}
+                  />
                   <div className={styles.syncLabel}>{syncLabel(source)}</div>
                 </div>
 
-                {!pending && (
+                {!unsupported && (
                   <button
+                    type="button"
                     onClick={() => testRow(source)}
-                    disabled={testState === "testing"}
+                    disabled={state === "testing"}
                     className={`${styles.testBtn} ${
-                      testState === "testing" ? styles.testBtnTesting : ""
-                    } ${testState === "ok" ? styles.testBtnOk : ""}`}
+                      state === "testing" ? styles.testBtnTesting : ""
+                    } ${state === "ok" ? styles.testBtnOk : ""}`}
                   >
                     {testLabel}
                   </button>
                 )}
 
-                <button onClick={() => renameSource(source)} className={styles.btnGhost}>
+                <button
+                  type="button"
+                  onClick={() => renameSource(source)}
+                  className={styles.sourceActionBtn}
+                >
                   Renommer
                 </button>
-                <button onClick={() => toggleActive(source)} className={styles.btnGhost}>
+                <button
+                  type="button"
+                  onClick={() => toggleActive(source)}
+                  className={styles.sourceActionBtn}
+                >
                   {source.active ? "Désactiver" : "Activer"}
                 </button>
                 <button
+                  type="button"
                   onClick={() => deleteSource(source)}
-                  className={`${styles.btnGhost} ${styles.btnDanger}`}
+                  className={styles.deleteBtn}
                 >
                   Supprimer
                 </button>

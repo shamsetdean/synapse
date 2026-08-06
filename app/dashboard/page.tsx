@@ -1,12 +1,15 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import SignOutButton from "./sign-out-button";
+import SynapseMark from "./synapse-mark";
 import NewTopicForm from "./new-topic-form";
 import TopicSortableList from "./topic-sortable-list";
 import ArticleFeed from "./article-feed";
+import ArticlesEmptyState from "./articles-empty-state";
 import StatsPanel from "./stats-panel";
 import UserSourcesPanel from "./user-sources-panel";
 import DashboardShell from "./dashboard-shell";
+import ConfigView from "./config-view";
 import styles from "./dashboard.module.css";
 
 export default async function DashboardPage() {
@@ -69,72 +72,67 @@ export default async function DashboardPage() {
       return true;
     });
 
+  // Bloc d'identité de la charte : sigle animé, nom en capitales, badge.
+  // ÉCARTS VOLONTAIRES demandés : le badge est placé sous le nom plutôt qu'à
+  // côté, et l'adresse de courriel passe sous le bouton de déconnexion.
   const logo = (
     <>
-      <svg width="30" height="30" viewBox="0 0 26 26">
-        <line x1="5" y1="5" x2="19" y2="5" stroke="#6d5fd0" strokeWidth="1.6" />
-        <line x1="19" y1="5" x2="5" y2="19" stroke="#6d5fd0" strokeWidth="1.6" />
-        <line x1="5" y1="19" x2="19" y2="19" stroke="#6d5fd0" strokeWidth="1.6" />
-        <circle cx="5" cy="5" r="3" fill="#8b7cf6" />
-        <circle cx="19" cy="5" r="3" fill="#6d5fd0" />
-        <circle cx="5" cy="19" r="3" fill="#6d5fd0" />
-        <circle cx="19" cy="19" r="3" fill="#8b7cf6" />
-      </svg>
-      <div>
-        <div className={styles.logo}>Synapse</div>
-        <p className={styles.email}>{user.email}</p>
+      <SynapseMark />
+      <div className={styles.brandText}>
+        <div className={styles.brandName}>SYNAPSE</div>
+        <div className={styles.brandBadge}>VEILLE INTELLIGENTE</div>
       </div>
+    </>
+  );
+
+  const accountBlock = (
+    <>
+      <SignOutButton />
+      <span className={styles.email}>{user.email}</span>
     </>
   );
 
   const articlesSection = (
     <div className={styles.main}>
-      <div className={styles.sectionHead}>
-        <div style={{ display: "flex", alignItems: "baseline", gap: 12 }}>
-          <h2 className={styles.sectionH2} style={{ fontSize: 30 }}>
-            Articles collectés
-          </h2>
-          <span className={styles.sectionCount}>({articles.length})</span>
-        </div>
+      <div className={styles.articleHead}>
+        <h2 className={styles.sectionH2}>Articles</h2>
+        {articles.length > 0 && (
+          <span className={styles.sectionCount}>
+            ({articles.length} correspondance{articles.length > 1 ? "s" : ""} les
+            plus récentes)
+          </span>
+        )}
       </div>
-      <ArticleFeed articles={articles} />
+      {articles.length === 0 ? (
+        <ArticlesEmptyState />
+      ) : (
+        <ArticleFeed articles={articles} />
+      )}
     </div>
   );
 
+  // Le titre, le compteur et la barre d'outils de réorganisation sont rendus
+  // par TopicSortableList : la charte les place sur une même ligne, or l'état
+  // du mode réorganisation vit dans ce composant.
   const dashboardSection = (
-    <div className={styles.main}>
-      <div className={styles.sectionHead}>
-        <div style={{ display: "flex", alignItems: "baseline", gap: 12 }}>
-          <h2 className={styles.sectionH2} style={{ fontSize: 30 }}>
-            Sujets de veille
-          </h2>
-          <span className={styles.sectionCount}>
-            ({(topics ?? []).length} actif{(topics ?? []).length > 1 ? "s" : ""})
-          </span>
-        </div>
-      </div>
+    <div className={`${styles.main} ${styles.mainTopics}`}>
+      {/* La clé intègre le statut : sans lui, une mise en pause ne changeait
+          aucun identifiant, donc rien ne se remontait et l'affichage restait
+          figé jusqu'au rechargement de la page. */}
+      <TopicSortableList
+        key={(topics ?? []).map((t) => `${t.id}:${t.status}`).join(",")}
+        initialTopics={topics ?? []}
+      />
       <NewTopicForm />
-      <TopicSortableList key={(topics ?? []).map((t) => t.id).join(",")} initialTopics={topics ?? []} />
     </div>
   );
 
   const configSection = (
-    <div className={styles.main}>
-      <div className={styles.sectionHead}>
-        <h2 className={styles.sectionH2} style={{ fontSize: 30 }}>
-          Configuration
-        </h2>
-      </div>
-
-      <div className={styles.sectionHead} style={{ marginTop: 8, marginBottom: 4 }}>
-        <span className={styles.sectionTitle}>Statistiques</span>
-      </div>
-      <StatsPanel userId={user.id} />
-
-      <div className={styles.sectionHead} style={{ marginTop: 32, marginBottom: 4 }}>
-        <span className={styles.sectionTitle}>Sources connectées</span>
-      </div>
-      <UserSourcesPanel initialSources={userSources ?? []} />
+    <div className={`${styles.main} ${styles.mainConfig}`}>
+      <ConfigView
+        stats={<StatsPanel userId={user.id} />}
+        sources={<UserSourcesPanel initialSources={userSources ?? []} />}
+      />
     </div>
   );
 
@@ -142,7 +140,7 @@ export default async function DashboardPage() {
     <main className={styles.page}>
       <DashboardShell
         logo={logo}
-        signOutButton={<SignOutButton />}
+        signOutButton={accountBlock}
         dashboardSection={dashboardSection}
         articlesSection={articlesSection}
         configSection={configSection}

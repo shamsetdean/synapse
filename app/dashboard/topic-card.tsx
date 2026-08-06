@@ -1,4 +1,5 @@
 "use client";
+
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
@@ -11,58 +12,97 @@ type Topic = {
   keywords: { id: string; term: string }[];
 };
 
+// Carte de sujet reprise de la charte : pastille de statut, mots-clés en
+// puces individuelles, ligne d'actions avec Pause à gauche et Supprimer en
+// texte simple à droite.
 export default function TopicCard({ topic }: { topic: Topic }) {
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const supabase = createClient();
   const router = useRouter();
 
+  const paused = topic.status !== "active";
+
   async function togglePause() {
     setLoading(true);
-    await supabase
+    setError(null);
+    const { error: err } = await supabase
       .from("topics")
-      .update({ status: topic.status === "active" ? "paused" : "active" })
+      .update({ status: paused ? "active" : "paused" })
       .eq("id", topic.id);
     setLoading(false);
+    // Le retour d'erreur était ignoré : un refus produisait une interface
+    // affichant un changement qui n'avait pas eu lieu.
+    if (err) {
+      setError("Changement d'état impossible.");
+      return;
+    }
     router.refresh();
   }
 
   async function deleteTopic() {
     if (!confirm(`Supprimer le sujet "${topic.name}" ?`)) return;
     setLoading(true);
-    await supabase.from("topics").delete().eq("id", topic.id);
+    setError(null);
+    const { error: err } = await supabase
+      .from("topics")
+      .delete()
+      .eq("id", topic.id);
     setLoading(false);
+    if (err) {
+      setError("Suppression impossible.");
+      return;
+    }
     router.refresh();
   }
 
   return (
-    <div className={styles.topicCard}>
-      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 6 }}>
+    <>
+      <div className={styles.topicHeadRow}>
         <div className={styles.topicName}>{topic.name}</div>
         <div
-          className={`${styles.statusDot} ${topic.status === "active" ? styles.statusDotActive : ""}`}
-        />
+          className={`${styles.statusPill} ${
+            paused ? styles.statusPillPaused : styles.statusPillActive
+          }`}
+        >
+          {paused ? "En pause" : "Actif"}
+        </div>
       </div>
 
-      <div className={styles.topicMeta}>
-        <span>
-          {topic.keywords.length > 0
-            ? topic.keywords.map((k) => k.term).join(", ")
-            : "Aucun mot-clé"}
-        </span>
-      </div>
+      {topic.keywords.length > 0 ? (
+        <div className={styles.keywordChips}>
+          {topic.keywords.map((k) => (
+            <span key={k.id} className={styles.keywordChip}>
+              {k.term}
+            </span>
+          ))}
+        </div>
+      ) : (
+        <div className={styles.topicNoKeyword}>Aucun mot-clé</div>
+      )}
 
-      <div style={{ display: "flex", gap: 6, marginTop: 4 }}>
-        <button onClick={togglePause} disabled={loading} className={styles.btnGhost}>
-          {topic.status === "active" ? "Pause" : "Réactiver"}
+      {error && (
+        <div style={{ fontSize: 11, color: "var(--danger)" }}>{error}</div>
+      )}
+
+      <div className={styles.topicFooter}>
+        <button
+          type="button"
+          onClick={togglePause}
+          disabled={loading}
+          className={styles.pauseBtn}
+        >
+          {paused ? "Reprendre" : "Pause"}
         </button>
         <button
+          type="button"
           onClick={deleteTopic}
           disabled={loading}
-          className={`${styles.btnGhost} ${styles.btnDanger}`}
+          className={styles.deleteBtn}
         >
           Supprimer
         </button>
       </div>
-    </div>
+    </>
   );
 }
