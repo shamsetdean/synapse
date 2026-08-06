@@ -8,7 +8,7 @@ import ArticleCards from "./blocks/ArticleCards";
 import Steps from "./blocks/Steps";
 
 export default async function HomePage() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
