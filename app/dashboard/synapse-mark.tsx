@@ -16,6 +16,14 @@
 // halo des nœuds proches du bord (haut, gauche) était donc tronqué net,
 // invisible à 44px mais bien visible à 60px. overflow: visible lève ce
 // masquage.
+//
+// AJOUT (15/08) : chaque nœud dérive désormais légèrement autour de sa
+// position (animateTransform translate, amplitude ~1 unité sur 40, durée et
+// déphasage propres à chaque nœud pour un mouvement désynchronisé plutôt que
+// tous les nœuds bougeant à l'unisson). Les liaisons gardent leurs
+// coordonnées fixes : à cette amplitude, l'écart entre le centre du nœud et
+// l'extrémité du trait reste de l'ordre du pixel, perceptible comme un
+// frémissement organique plutôt qu'un décalage visible.
 
 export default function SynapseMark() {
   return (
@@ -58,34 +66,43 @@ export default function SynapseMark() {
         <animate attributeName="stroke-dashoffset" values="16;0;0;16" keyTimes="0;0.3;0.7;1" dur="3.6s" begin="0.5s" repeatCount="indefinite"></animate>
         </line>
         <circle cx="20" cy="4" r="3.4" fill="url(#logoGrad)" filter="url(#logoGlow)">
+        <animateTransform attributeName="transform" type="translate" values="0,0; 0.9,-0.7; -0.5,0.6; 0,0" keyTimes="0;0.33;0.66;1" dur="4.2s" begin="0s" repeatCount="indefinite"></animateTransform>
         <animate attributeName="r" values="3.4;3.4;6.4;3.4;3.4" keyTimes="0;0.42;0.5;0.58;1" dur="2.9s" begin="0.15s" repeatCount="indefinite"></animate>
         <animate attributeName="opacity" values="0.8;0.8;1;0.8;0.8" keyTimes="0;0.42;0.5;0.58;1" dur="2.9s" begin="0.15s" repeatCount="indefinite"></animate>
         </circle>
         <circle cx="36" cy="20" r="3.4" fill="url(#logoGrad)" filter="url(#logoGlow)">
+        <animateTransform attributeName="transform" type="translate" values="0,0; -0.6,0.8; 0.7,-0.5; 0,0" keyTimes="0;0.33;0.66;1" dur="5.1s" begin="0.6s" repeatCount="indefinite"></animateTransform>
         <animate attributeName="r" values="3.4;3.4;6.4;3.4;3.4" keyTimes="0;0.42;0.5;0.58;1" dur="3.5s" begin="0.9s" repeatCount="indefinite"></animate>
         <animate attributeName="opacity" values="0.8;0.8;1;0.8;0.8" keyTimes="0;0.42;0.5;0.58;1" dur="3.5s" begin="0.9s" repeatCount="indefinite"></animate>
         </circle>
         <circle cx="20" cy="36" r="3.4" fill="url(#logoGrad)" filter="url(#logoGlow)">
+        <animateTransform attributeName="transform" type="translate" values="0,0; 0.6,0.7; -0.8,-0.4; 0,0" keyTimes="0;0.33;0.66;1" dur="4.6s" begin="1.2s" repeatCount="indefinite"></animateTransform>
         <animate attributeName="r" values="3.4;3.4;6.4;3.4;3.4" keyTimes="0;0.42;0.5;0.58;1" dur="2.6s" begin="1.6s" repeatCount="indefinite"></animate>
         <animate attributeName="opacity" values="0.8;0.8;1;0.8;0.8" keyTimes="0;0.42;0.5;0.58;1" dur="2.6s" begin="1.6s" repeatCount="indefinite"></animate>
         </circle>
         <circle cx="4" cy="20" r="3.4" fill="url(#logoGrad)" filter="url(#logoGlow)">
+        <animateTransform attributeName="transform" type="translate" values="0,0; -0.7,-0.6; 0.5,0.8; 0,0" keyTimes="0;0.33;0.66;1" dur="4.9s" begin="1.8s" repeatCount="indefinite"></animateTransform>
         <animate attributeName="r" values="3.4;3.4;6.4;3.4;3.4" keyTimes="0;0.42;0.5;0.58;1" dur="3.1s" begin="0.5s" repeatCount="indefinite"></animate>
         <animate attributeName="opacity" values="0.8;0.8;1;0.8;0.8" keyTimes="0;0.42;0.5;0.58;1" dur="3.1s" begin="0.5s" repeatCount="indefinite"></animate>
         </circle>
         <circle cx="12" cy="12" r="1.8" fill="url(#logoGrad)" filter="url(#logoGlow)">
+        <animateTransform attributeName="transform" type="translate" values="0,0; 0.5,0.5; -0.5,-0.3; 0,0" keyTimes="0;0.33;0.66;1" dur="3.9s" begin="0.4s" repeatCount="indefinite"></animateTransform>
         <animate attributeName="opacity" values="0.45;0.45;1;0.45;0.45" keyTimes="0;0.32;0.42;0.5;1" dur="2.7s" begin="0.35s" repeatCount="indefinite"></animate>
         </circle>
         <circle cx="28" cy="12" r="1.8" fill="url(#logoGrad)" filter="url(#logoGlow)">
+        <animateTransform attributeName="transform" type="translate" values="0,0; -0.5,0.4; 0.4,-0.6; 0,0" keyTimes="0;0.33;0.66;1" dur="4.4s" begin="1.0s" repeatCount="indefinite"></animateTransform>
         <animate attributeName="opacity" values="0.45;0.45;1;0.45;0.45" keyTimes="0;0.32;0.42;0.5;1" dur="3.3s" begin="1.1s" repeatCount="indefinite"></animate>
         </circle>
         <circle cx="28" cy="28" r="1.8" fill="url(#logoGrad)" filter="url(#logoGlow)">
+        <animateTransform attributeName="transform" type="translate" values="0,0; 0.4,-0.5; -0.6,0.4; 0,0" keyTimes="0;0.33;0.66;1" dur="3.6s" begin="1.7s" repeatCount="indefinite"></animateTransform>
         <animate attributeName="opacity" values="0.45;0.45;1;0.45;0.45" keyTimes="0;0.32;0.42;0.5;1" dur="2.4s" begin="1.9s" repeatCount="indefinite"></animate>
         </circle>
         <circle cx="12" cy="28" r="1.8" fill="url(#logoGrad)" filter="url(#logoGlow)">
+        <animateTransform attributeName="transform" type="translate" values="0,0; -0.4,-0.5; 0.6,0.3; 0,0" keyTimes="0;0.33;0.66;1" dur="5.3s" begin="0.2s" repeatCount="indefinite"></animateTransform>
         <animate attributeName="opacity" values="0.45;0.45;1;0.45;0.45" keyTimes="0;0.32;0.42;0.5;1" dur="3.6s" begin="0.7s" repeatCount="indefinite"></animate>
         </circle>
         <circle cx="20" cy="20" r="2.4" fill="url(#logoGrad)" filter="url(#logoGlow)">
+        <animateTransform attributeName="transform" type="translate" values="0,0; 0.4,0.4; -0.4,-0.4; 0,0" keyTimes="0;0.33;0.66;1" dur="4.0s" begin="0.9s" repeatCount="indefinite"></animateTransform>
         <animate attributeName="r" values="2.4;2.4;4.8;2.4;2.4" keyTimes="0;0.46;0.5;0.54;1" dur="3.0s" begin="0.25s" repeatCount="indefinite"></animate>
         <animate attributeName="opacity" values="0.65;0.65;1;0.65;0.65" keyTimes="0;0.46;0.5;0.54;1" dur="3.0s" begin="0.25s" repeatCount="indefinite"></animate>
         </circle>

@@ -1164,11 +1164,11 @@
 
 .navLegendActive::after {
   content: "";
-  width: 5px;
-  height: 5px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
   background: var(--violet);
-  animation: pulseNode 1.8s ease-in-out infinite;
+  animation: pulseNode 1.6s ease-in-out infinite;
   flex-shrink: 0;
 }
 
