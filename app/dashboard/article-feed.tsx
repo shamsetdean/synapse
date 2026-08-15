@@ -78,26 +78,31 @@ function groupByTopic(articles: FeedArticle[]) {
   }));
 }
 
+// Options du filtre de fraîcheur. "hours: null" signifie aucune limite
+// (tout est affiché, y compris les articles archivés).
+const AGE_FILTERS: { label: string; hours: number | null }[] = [
+  { label: "24 h", hours: 24 },
+  { label: "72 h", hours: 72 },
+  { label: "7 j", hours: 168 },
+  { label: "Tout", hours: null },
+];
+
 export default function ArticleFeed({
   articles,
 }: {
   articles: FeedArticle[];
 }) {
-  // Masqués par défaut : la fraîcheur perd son sens au-delà de 72h, et le
-  // flux mélangeait des articles vieux de plusieurs centaines de jours à
-  // des articles du jour. Le bouton permet de les faire réapparaître sans
-  // recharger la page.
-  const [showArchived, setShowArchived] = useState(false);
-  const archivedCount = useMemo(
-    () => articles.filter((article) => article.ageHours >= 72).length,
-    [articles],
-  );
+  // 72h par défaut : la fraîcheur perd son sens au-delà, et le flux
+  // mélangeait des articles vieux de plusieurs centaines de jours à des
+  // articles du jour. Les autres options permettent d'élargir ou de
+  // resserrer la fenêtre sans recharger la page.
+  const [maxAgeHours, setMaxAgeHours] = useState<number | null>(72);
   const visibleArticles = useMemo(
     () =>
-      showArchived
+      maxAgeHours === null
         ? articles
-        : articles.filter((article) => article.ageHours < 72),
-    [articles, showArchived],
+        : articles.filter((article) => article.ageHours < maxAgeHours),
+    [articles, maxAgeHours],
   );
 
   const groups = groupByTopic(visibleArticles);
@@ -147,28 +152,31 @@ export default function ArticleFeed({
           {visibleArticles.length} correspondance
           {visibleArticles.length > 1 ? "s" : ""} affichée
           {visibleArticles.length > 1 ? "s" : ""}
+          {visibleArticles.length !== articles.length &&
+            ` sur ${articles.length}`}
         </span>
-        {archivedCount > 0 && (
-          <button
-            type="button"
-            onClick={() => setShowArchived((v) => !v)}
-            className={`${styles.editToggle} ${
-              showArchived ? styles.editToggleActive : ""
-            }`}
-          >
-            {showArchived
-              ? `Masquer les archivés (${archivedCount})`
-              : `Afficher les archivés (${archivedCount})`}
-          </button>
-        )}
+        <div className={styles.ageFilterGroup}>
+          {AGE_FILTERS.map((option) => (
+            <button
+              key={option.label}
+              type="button"
+              onClick={() => setMaxAgeHours(option.hours)}
+              className={`${styles.editToggle} ${
+                maxAgeHours === option.hours ? styles.editToggleActive : ""
+              }`}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {visibleArticles.length === 0 ? (
         <div className={styles.emptyBlock}>
-          <div className={styles.emptyTitle}>Rien de récent en ce moment</div>
+          <div className={styles.emptyTitle}>Rien dans cette fenêtre</div>
           <div className={styles.emptyText}>
-            Tous les articles collectés ont plus de 72 heures. Clique sur
-            « Afficher les archivés » ci-dessus pour les revoir.
+            Aucun article ne correspond à la période sélectionnée. Essaie une
+            fenêtre plus large ci-dessus.
           </div>
         </div>
       ) : (
