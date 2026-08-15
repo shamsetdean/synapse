@@ -9,12 +9,19 @@
 // ici rendu à 60 pixels (augmenté sur demande du 15/08, précédemment 44px).
 // Seule la taille d'affichage change ; le tracé, les proportions et les
 // animations restent identiques.
+//
+// CORRECTIF (15/08) : les nœuds sont à 4 unités du bord du viewBox 0-40, et
+// le halo de logoGlow déborde légèrement de leur propre contour. Un <svg>
+// masque par défaut (overflow: hidden) tout ce qui dépasse son viewport : le
+// halo des nœuds proches du bord (haut, gauche) était donc tronqué net,
+// invisible à 44px mais bien visible à 60px. overflow: visible lève ce
+// masquage.
 
 export default function SynapseMark() {
   return (
   <svg
         width="60"
-        height="60" viewBox="0 0 40 40" style={{ flexShrink: 0 }}
+        height="60" viewBox="0 0 40 40" style={{ flexShrink: 0, overflow: "visible" }}
         aria-hidden="true">
         <defs>
         <linearGradient id="logoGrad" x1="0" y1="0" x2="1" y2="1">
