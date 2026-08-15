@@ -1,4 +1,7 @@
-import { createClient } from "@/lib/supabase/server";
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import { createClient } from "@/lib/supabase/client";
 import styles from "./dashboard.module.css";
 
 type DashboardStats = {
@@ -19,20 +22,116 @@ const LANG_COLORS: Record<string, string> = {
 };
 const LANG_FALLBACK = "#c9c2b0";
 
-export default async function StatsPanel({ userId }: { userId: string }) {
-  const supabase = await createClient();
-  const { data, error } = await supabase.rpc("get_dashboard_stats", {
-    p_user_id: userId,
-  });
+// La collecte tourne toutes les 20 minutes (voir le pied de page), donc les
+// données elles-mêmes ne changent pas plus vite que ça. Interroger toutes les
+// 20 secondes garde malgré tout le panneau "vivant" : les compteurs et les
+// barres se remettent doucement à jour dès qu'un cycle de collecte a livré du
+// nouveau, sans attendre un rechargement de page.
+const POLL_MS = 20_000;
 
-  const stats = data as DashboardStats | null;
+// Anime un nombre affiché entre son ancienne et sa nouvelle valeur, plutôt
+// qu'un saut instantané — utilisé pour les cinq compteurs.
+function useAnimatedNumber(target: number, duration = 700) {
+  const [display, setDisplay] = useState(target);
+  const fromRef = useRef(target);
+  const mountedOnce = useRef(false);
 
-  if (error || !stats) {
+  useEffect(() => {
+    // Premier rendu : pas d'animation, on affiche directement la valeur.
+    if (!mountedOnce.current) {
+      mountedOnce.current = true;
+      fromRef.current = target;
+      setDisplay(target);
+      return;
+    }
+    const from = fromRef.current;
+    if (from === target) return;
+    const start = performance.now();
+    let raf = 0;
+    function tick(now: number) {
+      const t = Math.min(1, (now - start) / duration);
+      const eased = 1 - Math.pow(1 - t, 3);
+      setDisplay(Math.round(from + (target - from) * eased));
+      if (t < 1) {
+        raf = requestAnimationFrame(tick);
+      } else {
+        fromRef.current = target;
+      }
+    }
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [target, duration]);
+
+  return display;
+}
+
+function Counter({
+  label,
+  value,
+  color,
+  note,
+}: {
+  label: string;
+  value: number;
+  color: string;
+  note?: string;
+}) {
+  const shown = useAnimatedNumber(value);
+  return (
+    <div className={styles.counterCard}>
+      <div className={styles.counterLabel}>{label}</div>
+      <div className={styles.counterValue} style={{ color }}>
+        {shown}
+      </div>
+      {note && <div className={styles.counterNote}>{note}</div>}
+    </div>
+  );
+}
+
+export default function StatsPanel({ userId }: { userId: string }) {
+  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [loadError, setLoadError] = useState(false);
+  const supabase = createClient();
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function load() {
+      const { data, error } = await supabase.rpc("get_dashboard_stats", {
+        p_user_id: userId,
+      });
+      if (cancelled) return;
+      if (error || !data) {
+        setLoadError(true);
+        return;
+      }
+      setLoadError(false);
+      setStats(data as DashboardStats);
+    }
+
+    load();
+    const interval = setInterval(load, POLL_MS);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId]);
+
+  if (loadError && !stats) {
     return (
       <div className={styles.chartSection}>
         <p className={styles.emptyState}>
           Statistiques indisponibles pour le moment.
         </p>
+      </div>
+    );
+  }
+
+  if (!stats) {
+    return (
+      <div className={styles.chartSection}>
+        <p className={styles.emptyState}>Chargement des statistiques...</p>
       </div>
     );
   }
@@ -113,13 +212,7 @@ export default async function StatsPanel({ userId }: { userId: string }) {
     <div className={styles.configStack}>
       <div className={styles.counterGrid}>
         {counters.map((c) => (
-          <div key={c.label} className={styles.counterCard}>
-            <div className={styles.counterLabel}>{c.label}</div>
-            <div className={styles.counterValue} style={{ color: c.color }}>
-              {c.value}
-            </div>
-            {c.note && <div className={styles.counterNote}>{c.note}</div>}
-          </div>
+          <Counter key={c.label} {...c} />
         ))}
       </div>
 
