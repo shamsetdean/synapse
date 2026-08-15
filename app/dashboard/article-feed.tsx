@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import AgeFilterDial from "./age-filter-dial";
 import styles from "./dashboard.module.css";
 
 type FeedArticle = {
@@ -78,14 +79,7 @@ function groupByTopic(articles: FeedArticle[]) {
   }));
 }
 
-// Options du filtre de fraîcheur. "hours: null" signifie aucune limite
-// (tout est affiché, y compris les articles archivés).
-const AGE_FILTERS: { label: string; hours: number | null }[] = [
-  { label: "24 h", hours: 24 },
-  { label: "72 h", hours: 72 },
-  { label: "7 j", hours: 168 },
-  { label: "Tout", hours: null },
-];
+// Fenêtre de fraîcheur pilotée par le cadran AgeFilterDial ci-dessous.
 
 export default function ArticleFeed({
   articles,
@@ -155,20 +149,7 @@ export default function ArticleFeed({
           {visibleArticles.length !== articles.length &&
             ` sur ${articles.length}`}
         </span>
-        <div className={styles.ageFilterGroup}>
-          {AGE_FILTERS.map((option) => (
-            <button
-              key={option.label}
-              type="button"
-              onClick={() => setMaxAgeHours(option.hours)}
-              className={`${styles.editToggle} ${
-                maxAgeHours === option.hours ? styles.editToggleActive : ""
-              }`}
-            >
-              {option.label}
-            </button>
-          ))}
-        </div>
+        <AgeFilterDial value={maxAgeHours} onChange={setMaxAgeHours} />
       </div>
 
       {visibleArticles.length === 0 ? (

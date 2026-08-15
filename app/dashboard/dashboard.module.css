@@ -310,6 +310,18 @@
   font-weight: var(--sy-weight-semibold);
   font-size: var(--sy-size-13-5);
   cursor: pointer;
+  transition: border-color var(--sy-duration-fast) var(--sy-ease),
+    color var(--sy-duration-fast) var(--sy-ease),
+    transform var(--sy-duration-fast) var(--sy-ease);
+}
+
+.btnOutline:hover:not(:disabled) {
+  border-color: var(--violet);
+  color: var(--violet-deep);
+}
+
+.btnOutline:active:not(:disabled) {
+  transform: scale(0.97);
 }
 
 .btnSolid {
@@ -322,6 +334,16 @@
   font-weight: var(--sy-weight-semibold);
   font-size: var(--sy-size-13-5);
   cursor: pointer;
+  transition: opacity var(--sy-duration-fast) var(--sy-ease),
+    transform var(--sy-duration-fast) var(--sy-ease);
+}
+
+.btnSolid:hover:not(:disabled) {
+  opacity: 0.85;
+}
+
+.btnSolid:active:not(:disabled) {
+  transform: scale(0.97);
 }
 
 .btnOutline:disabled,
@@ -347,8 +369,15 @@
   gap: var(--sy-space-10);
   transition: opacity var(--sy-duration-fast) var(--sy-ease),
     transform var(--sy-duration-base) var(--sy-ease),
-    border-color var(--sy-duration-base) var(--sy-ease);
+    border-color var(--sy-duration-base) var(--sy-ease),
+    box-shadow var(--sy-duration-base) var(--sy-ease);
   animation: cardIn 0.45s var(--sy-ease) both;
+}
+
+.topicCard:hover {
+  border-color: var(--violet);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(109, 95, 208, 0.12);
 }
 
 /* Un sujet en pause est atténué. ÉCART VOLONTAIRE demandé : la charte fixe
@@ -391,6 +420,8 @@
   padding: var(--sy-space-3) var(--sy-space-8);
   border-radius: var(--sy-radius-20);
   white-space: nowrap;
+  transition: background var(--sy-duration-base) var(--sy-ease),
+    color var(--sy-duration-base) var(--sy-ease);
 }
 
 .statusPillActive {
@@ -440,6 +471,21 @@
   border-radius: var(--sy-radius-8);
   padding: var(--sy-space-4) var(--sy-space-10);
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sy-space-6);
+  transition: border-color var(--sy-duration-fast) var(--sy-ease),
+    color var(--sy-duration-fast) var(--sy-ease),
+    transform var(--sy-duration-fast) var(--sy-ease);
+}
+
+.pauseBtn:hover:not(:disabled) {
+  border-color: var(--violet);
+  color: var(--violet-deep);
+}
+
+.pauseBtn:active:not(:disabled) {
+  transform: scale(0.96);
 }
 
 .deleteBtn {
@@ -450,6 +496,29 @@
   border: none;
   cursor: pointer;
   padding: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sy-space-6);
+  transition: opacity var(--sy-duration-fast) var(--sy-ease),
+    transform var(--sy-duration-fast) var(--sy-ease);
+}
+
+.deleteBtn:hover:not(:disabled) {
+  opacity: 0.7;
+}
+
+.deleteBtn:active:not(:disabled) {
+  transform: scale(0.96);
+}
+
+.btnSpinner {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  border: 1.5px solid currentColor;
+  border-top-color: transparent;
+  animation: spinFast 0.7s linear infinite;
+  flex-shrink: 0;
 }
 
 .pauseBtn:disabled,
@@ -486,9 +555,86 @@
   gap: var(--sy-space-10);
 }
 
-.ageFilterGroup {
-  display: flex;
-  gap: var(--sy-space-6);
+/* Cadran de filtre de fraîcheur, façon horloge */
+.ageDial {
+  position: relative;
+  width: 108px;
+  height: 108px;
+  flex-shrink: 0;
+}
+
+.ageDialSvg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.ageDialSpin {
+  animation: spinSlow 14s linear infinite;
+  transform-origin: 50% 50%;
+}
+
+.ageDialFace {
+  fill: var(--card);
+  stroke: var(--line);
+  stroke-width: 1;
+}
+
+.ageDialTick {
+  stroke: var(--line-dashed);
+  stroke-width: 2;
+  stroke-linecap: round;
+  transition: stroke var(--sy-duration-base) var(--sy-ease);
+}
+
+.ageDialTickActive {
+  stroke: url(#ageDialGrad);
+  stroke-width: 3;
+  stroke-linecap: round;
+}
+
+.ageDialNeedle {
+  stroke: var(--violet-deep);
+  stroke-width: 2;
+  stroke-linecap: round;
+  transition: x2 0.4s var(--sy-ease), y2 0.4s var(--sy-ease);
+}
+
+.ageDialHub {
+  fill: var(--violet-deep);
+}
+
+.ageDialLabel {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  font-family: var(--font-mono);
+  font-size: var(--sy-size-9-5);
+  font-weight: var(--sy-weight-semibold);
+  letter-spacing: var(--sy-tracking-wide);
+  color: var(--ink-dim);
+  background: var(--cream);
+  border: var(--sy-border-width) solid var(--line);
+  border-radius: var(--sy-radius-20);
+  padding: 3px 7px;
+  cursor: pointer;
+  transition: color var(--sy-duration-fast) var(--sy-ease),
+    border-color var(--sy-duration-fast) var(--sy-ease),
+    box-shadow var(--sy-duration-fast) var(--sy-ease),
+    transform var(--sy-duration-fast) var(--sy-ease);
+}
+
+.ageDialLabel:hover {
+  border-color: var(--violet);
+  color: var(--violet-deep);
+}
+
+.ageDialLabelActive {
+  color: var(--violet-deep);
+  border-color: var(--violet);
+  box-shadow: 0 0 0 3px rgba(139, 124, 246, 0.18);
+  transform: translate(-50%, -50%) scale(1.08);
 }
 
 .topicGroups {
