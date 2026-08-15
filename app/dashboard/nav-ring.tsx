@@ -83,8 +83,16 @@ export default function NavRing({
           aria-hidden="true"
         >
           <defs>
-            <linearGradient id="navRingGrad" x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0%" stopColor="#8b7cf6" />
+            <linearGradient
+              id="navRingGrad"
+              gradientUnits="userSpaceOnUse"
+              x1="4"
+              y1="4"
+              x2="60"
+              y2="60"
+            >
+              <stop offset="0%" stopColor="#a89bf8" />
+              <stop offset="55%" stopColor="#8b7cf6" />
               <stop offset="100%" stopColor="#6d5fd0" />
             </linearGradient>
           </defs>
