@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import styles from "./dashboard.module.css";
 
 type FeedArticle = {
@@ -84,6 +85,44 @@ export default function ArticleFeed({
 }) {
   const groups = groupByTopic(articles);
 
+  // Animation d'entrée pilotée par le scroll : IntersectionObserver plutôt
+  // que animation-timeline: view() (support Safari encore inégal, et déjà
+  // source de bugs de rendu sur iOS ailleurs dans les projets Anthropotech).
+  // Chaque carte n'est révélée qu'une fois puis désobservée ; la classe est
+  // posée après montage pour ne jamais diverger entre rendu serveur et
+  // hydratation.
+  // Map plutôt qu'un tableau réinitialisé en render : les callback refs sont
+  // posés au commit (pas pendant le rendu), donc rien n'écrit dans le ref
+  // avant que React n'ait fini de rendre.
+  const cardMap = useRef<Map<string, HTMLAnchorElement>>(new Map());
+  function registerCard(id: string) {
+    return (el: HTMLAnchorElement | null) => {
+      if (el) cardMap.current.set(id, el);
+      else cardMap.current.delete(id);
+    };
+  }
+
+  useEffect(() => {
+    const cards = Array.from(cardMap.current.values());
+    if (typeof IntersectionObserver === "undefined") {
+      cards.forEach((el) => el.classList.add(styles.articleCardInView));
+      return;
+    }
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            entry.target.classList.add(styles.articleCardInView);
+            observer.unobserve(entry.target);
+          }
+        }
+      },
+      { threshold: 0.15, rootMargin: "0px 0px -40px 0px" },
+    );
+    cards.forEach((el) => observer.observe(el));
+    return () => observer.disconnect();
+  }, [articles]);
+
   return (
     <div className={styles.topicGroups}>
       {groups.map((group) => (
@@ -108,13 +147,14 @@ export default function ArticleFeed({
               return (
                 <a
                   key={article.id}
+                  ref={registerCard(article.id)}
                   href={article.url}
                   target="_blank"
                   rel="noopener noreferrer"
                   className={`${styles.articleCard} ${
                     archived ? styles.articleCardArchived : ""
                   }`}
-                  style={{ animationDelay: `${(index % 12) * 0.04}s` }}
+                  style={{ transitionDelay: `${(index % 6) * 0.05}s` }}
                 >
                   <div className={styles.articleSource}>
                     {article.sourceName}

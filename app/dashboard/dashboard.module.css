@@ -518,16 +518,35 @@
   background: var(--card);
   text-decoration: none;
   color: var(--ink);
-  transition: transform var(--sy-duration-base) var(--sy-ease),
+  /* État avant entrée dans le viewport : la classe .articleCardInView est
+     posée par IntersectionObserver (article-feed.tsx) au premier passage
+     de la carte à l'écran, une seule fois. */
+  opacity: 0;
+  transform: scale(0.94);
+  transition: opacity 0.5s var(--sy-ease-out),
+    transform 0.5s var(--sy-ease-out),
     border-color var(--sy-duration-base) var(--sy-ease),
     box-shadow var(--sy-duration-base) var(--sy-ease);
-  animation: cardIn 0.45s var(--sy-ease) both;
+}
+
+.articleCardInView {
+  opacity: 1;
+  transform: scale(1);
 }
 
 .articleCard:hover {
   border-color: var(--violet);
   transform: translateY(-3px);
   box-shadow: 0 6px 16px rgba(109, 95, 208, 0.14);
+}
+
+/* Confort visuel : pas d'animation d'entrée pour qui la refuse. */
+@media (prefers-reduced-motion: reduce) {
+  .articleCard {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
 }
 
 /* Un article de plus de 72 heures est atténué, sans disparaître. */
