@@ -962,7 +962,11 @@
   position: absolute;
   inset: 0;
   animation: spinSlow 14s linear infinite;
-  transform-origin: 32px 32px;
+  /* Corrigé : le SVG est rendu à 104px, donc le vrai centre est à 52px, pas
+     32px (qui provenait à tort du viewBox interne 0-64). L'ancienne valeur
+     faisait tourner l'anneau autour d'un point décalé plutôt que sur
+     lui-même — d'où l'impression que l'animation ne "marchait pas". */
+  transform-origin: 50% 50%;
   pointer-events: none;
 }
 
