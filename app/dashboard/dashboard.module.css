@@ -683,6 +683,7 @@
   background: var(--card);
   text-decoration: none;
   color: var(--ink);
+  cursor: pointer;
   /* État avant entrée dans le viewport : la classe .articleCardInView est
      posée par IntersectionObserver (article-feed.tsx) au premier passage
      de la carte à l'écran, une seule fois. */
@@ -732,6 +733,11 @@
   font-size: var(--sy-size-14-5);
   line-height: var(--sy-leading-snug);
   color: var(--ink);
+  text-decoration: none;
+}
+
+.articleTitle:hover {
+  color: var(--violet-deep);
 }
 
 .gaugeRow {
@@ -773,6 +779,57 @@
   font-family: var(--font-mono);
   font-size: var(--sy-size-10-5);
   font-weight: var(--sy-weight-semibold);
+}
+
+/* Boutons pouce (favori / pas intéressé) sur chaque carte article */
+.articleActions {
+  display: flex;
+  gap: var(--sy-space-8);
+  padding-top: var(--sy-space-8);
+  margin-top: var(--sy-space-2);
+  border-top: var(--sy-border-width) solid var(--line);
+}
+
+.thumbBtn {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--sy-space-6) 0;
+  border-radius: var(--sy-radius-8);
+  border: var(--sy-border-width) solid var(--line);
+  background: transparent;
+  color: var(--ink-mid);
+  cursor: pointer;
+  transition: border-color var(--sy-duration-fast) var(--sy-ease),
+    color var(--sy-duration-fast) var(--sy-ease),
+    background var(--sy-duration-fast) var(--sy-ease),
+    transform var(--sy-duration-fast) var(--sy-ease);
+}
+
+.thumbBtn:hover:not(:disabled) {
+  border-color: var(--violet);
+  color: var(--violet-deep);
+}
+
+.thumbBtn:active:not(:disabled) {
+  transform: scale(0.94);
+}
+
+.thumbBtn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.thumbBtnActive {
+  border-color: var(--violet);
+  background: rgba(139, 124, 246, 0.12);
+  color: var(--violet-deep);
+}
+
+.thumbBtnDismiss:hover:not(:disabled) {
+  border-color: var(--danger);
+  color: var(--danger);
 }
 
 /* État vide de la vue Articles — valeurs de la charte */
