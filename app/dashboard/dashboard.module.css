@@ -71,10 +71,11 @@
      de cette réserve, quelle que soit la longueur de l'adresse. */
   padding: 16px 280px 16px 28px;
   /* La charte fixe 112px, calculé pour un anneau de 104px respirant à une
-     amplitude de 1.045, soit 109px au maximum. L'amplitude ayant été portée
-     à 1.09 à ta demande, l'anneau atteint 113px et débordait par le haut de
-     la page. Hauteur portée à 124px pour l'accueillir. */
-  min-height: 124px;
+     amplitude de 1.045, soit 109px au maximum. L'amplitude a été portée à
+     1.09 (113px) puis à 1.2 le 15/08 (125px au pic) pour une respiration
+     nettement plus marquée. Hauteur portée à 136px pour l'accueillir avec
+     un peu de marge. */
+  min-height: 136px;
   position: relative;
   border-bottom: 1px solid var(--line);
   position: sticky;
@@ -1176,9 +1177,9 @@
   position: relative;
   width: 104px;
   height: 104px;
-  /* ÉCART VOLONTAIRE demandé : amplitude portée de 1.045 à 1.09. La durée
-     de 3,2 s de la charte est conservée. */
-  animation: breatheStrong 3.2s ease-in-out infinite;
+  /* ÉCART VOLONTAIRE demandé : amplitude portée de 1.045 à 1.2 (demande du
+     15/08, l'anneau doit clairement "respirer") et durée resserrée à 2s. */
+  animation: breatheStrong 2s ease-in-out infinite;
   display: inline-block;
   flex-shrink: 0;
 }
