@@ -1,6 +1,14 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type MouseEvent,
+} from "react";
+import { ThumbsUp, ThumbsDown } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
 import AgeFilterDial from "./age-filter-dial";
 import styles from "./dashboard.module.css";
 
@@ -81,11 +89,115 @@ function groupByTopic(articles: FeedArticle[]) {
 
 // Fenêtre de fraîcheur pilotée par le cadran AgeFilterDial ci-dessous.
 
+// Clic sur la carte : ouvre l'article, sauf si le clic vient d'un bouton ou
+// d'un lien (pouces, titre) qui gère déjà son propre comportement — sinon un
+// clic sur "Garder" ouvrirait aussi l'article en plus de le marquer favori.
+function handleCardClick(event: MouseEvent<HTMLDivElement>, url: string) {
+  const target = event.target as HTMLElement;
+  if (target.closest("a, button")) return;
+  window.open(url, "_blank", "noopener,noreferrer");
+}
+
 export default function ArticleFeed({
   articles,
+  favoritedIds,
 }: {
   articles: FeedArticle[];
+  favoritedIds: string[];
 }) {
+  const supabase = useMemo(() => createClient(), []);
+
+  // "Écarté" retire l'article de la vue immédiatement (optimiste) ; l'écriture
+  // en base se fait en tâche de fond. dismissedIds ne contient donc que les
+  // décisions prises PENDANT cette session — les articles déjà écartés lors
+  // d'une session précédente sont filtrés côté serveur (page.tsx), en amont
+  // du tableau "articles" reçu ici.
+  const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set());
+  const [favoriteIds, setFavoriteIds] = useState<Set<string>>(
+    () => new Set(favoritedIds),
+  );
+  const [pendingIds, setPendingIds] = useState<Set<string>>(new Set());
+
+  // Récupéré une seule fois au montage plutôt qu'à chaque clic pour ne pas
+  // ajouter un aller-retour réseau à chaque action pouce ; suit le même
+  // schéma que new-topic-form.tsx (user_id explicite à l'écriture, aucune
+  // valeur par défaut côté base sur cette colonne).
+  const [userId, setUserId] = useState<string | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    supabase.auth.getUser().then(({ data }) => {
+      if (!cancelled) setUserId(data.user?.id ?? null);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [supabase]);
+
+  function setPending(id: string, isPending: boolean) {
+    setPendingIds((prev) => {
+      const next = new Set(prev);
+      if (isPending) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  }
+
+  async function toggleFavorite(id: string) {
+    if (!userId) return;
+    const wasFavorited = favoriteIds.has(id);
+    setFavoriteIds((prev) => {
+      const next = new Set(prev);
+      if (wasFavorited) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+    setPending(id, true);
+    const { error } = wasFavorited
+      ? await supabase
+          .from("favorites")
+          .delete()
+          .eq("article_id", id)
+          .eq("user_id", userId)
+      : await supabase
+          .from("favorites")
+          .insert({ article_id: id, user_id: userId });
+    setPending(id, false);
+    if (error) {
+      // Écriture refusée : on revient à l'état affiché avant le clic.
+      setFavoriteIds((prev) => {
+        const next = new Set(prev);
+        if (wasFavorited) next.add(id);
+        else next.delete(id);
+        return next;
+      });
+      console.error("favorites: échec de l'écriture", error);
+    }
+  }
+
+  async function dismissArticle(id: string) {
+    if (!userId) return;
+    setDismissedIds((prev) => new Set(prev).add(id));
+    setPending(id, true);
+    const { error } = await supabase
+      .from("dismissed_articles")
+      .insert({ article_id: id, user_id: userId });
+    setPending(id, false);
+    if (error) {
+      // Écriture refusée : l'article réapparaît dans le flux.
+      setDismissedIds((prev) => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
+      console.error("dismissed_articles: échec de l'écriture", error);
+    }
+  }
+
+  const remainingArticles = useMemo(
+    () => articles.filter((article) => !dismissedIds.has(article.id)),
+    [articles, dismissedIds],
+  );
+
   // 72h par défaut : la fraîcheur perd son sens au-delà, et le flux
   // mélangeait des articles vieux de plusieurs centaines de jours à des
   // articles du jour. Les autres options permettent d'élargir ou de
@@ -94,9 +206,11 @@ export default function ArticleFeed({
   const visibleArticles = useMemo(
     () =>
       maxAgeHours === null
-        ? articles
-        : articles.filter((article) => article.ageHours < maxAgeHours),
-    [articles, maxAgeHours],
+        ? remainingArticles
+        : remainingArticles.filter(
+            (article) => article.ageHours < maxAgeHours,
+          ),
+    [remainingArticles, maxAgeHours],
   );
 
   const groups = groupByTopic(visibleArticles);
@@ -107,12 +221,13 @@ export default function ArticleFeed({
   // Chaque carte n'est révélée qu'une fois puis désobservée ; la classe est
   // posée après montage pour ne jamais diverger entre rendu serveur et
   // hydratation.
-  // Map plutôt qu'un tableau réinitialisé en render : les callback refs sont
-  // posés au commit (pas pendant le rendu), donc rien n'écrit dans le ref
-  // avant que React n'ait fini de rendre.
-  const cardMap = useRef<Map<string, HTMLAnchorElement>>(new Map());
+  // Le lien vers l'article vit sur le seul titre (élément <a>) plutôt que sur
+  // la carte entière, afin que les boutons pouce ne soient pas imbriqués
+  // dans un élément interactif — la carte elle-même est un <div>, observé
+  // pour l'apparition au scroll.
+  const cardMap = useRef<Map<string, HTMLDivElement>>(new Map());
   function registerCard(id: string) {
-    return (el: HTMLAnchorElement | null) => {
+    return (el: HTMLDivElement | null) => {
       if (el) cardMap.current.set(id, el);
       else cardMap.current.delete(id);
     };
@@ -146,8 +261,8 @@ export default function ArticleFeed({
           {visibleArticles.length} correspondance
           {visibleArticles.length > 1 ? "s" : ""} affichée
           {visibleArticles.length > 1 ? "s" : ""}
-          {visibleArticles.length !== articles.length &&
-            ` sur ${articles.length}`}
+          {visibleArticles.length !== remainingArticles.length &&
+            ` sur ${remainingArticles.length}`}
         </span>
         <AgeFilterDial value={maxAgeHours} onChange={setMaxAgeHours} />
       </div>
@@ -181,13 +296,14 @@ export default function ArticleFeed({
                   const color = mixColor("#4a473f", "#8b7cf6", fresh);
                   const archived = article.ageHours >= 72;
 
+                  const isFavorited = favoriteIds.has(article.id);
+                  const isPending = pendingIds.has(article.id);
+
                   return (
-                    <a
+                    <div
                       key={article.id}
                       ref={registerCard(article.id)}
-                      href={article.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
+                      onClick={(e) => handleCardClick(e, article.url)}
                       className={`${styles.articleCard} ${
                         archived ? styles.articleCardArchived : ""
                       }`}
@@ -196,9 +312,14 @@ export default function ArticleFeed({
                       <div className={styles.articleSource}>
                         {article.sourceName}
                       </div>
-                      <div className={styles.articleTitle}>
+                      <a
+                        href={article.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={styles.articleTitle}
+                      >
                         {article.title}
-                      </div>
+                      </a>
 
                       <div className={styles.gaugeRow}>
                         <div className={styles.gaugeLabel}>FRAÎCHEUR</div>
@@ -219,7 +340,35 @@ export default function ArticleFeed({
                           {archived ? " (archivé)" : ""}
                         </span>
                       </div>
-                    </a>
+
+                      <div className={styles.articleActions}>
+                        <button
+                          type="button"
+                          disabled={isPending || !userId}
+                          onClick={() => toggleFavorite(article.id)}
+                          aria-pressed={isFavorited}
+                          aria-label={
+                            isFavorited
+                              ? "Retirer des favoris"
+                              : "Garder cet article"
+                          }
+                          className={`${styles.thumbBtn} ${
+                            isFavorited ? styles.thumbBtnActive : ""
+                          }`}
+                        >
+                          <ThumbsUp size={14} strokeWidth={2.25} />
+                        </button>
+                        <button
+                          type="button"
+                          disabled={isPending || !userId}
+                          onClick={() => dismissArticle(article.id)}
+                          aria-label="Retirer, ne m'intéresse pas"
+                          className={`${styles.thumbBtn} ${styles.thumbBtnDismiss}`}
+                        >
+                          <ThumbsDown size={14} strokeWidth={2.25} />
+                        </button>
+                      </div>
+                    </div>
                   );
                 })}
               </div>

@@ -39,6 +39,19 @@ export default async function DashboardPage() {
     .select("*")
     .order("created_at", { ascending: false });
 
+  const { data: favoriteRows } = await supabase
+    .from("favorites")
+    .select("article_id");
+
+  const { data: dismissedRows } = await supabase
+    .from("dismissed_articles")
+    .select("article_id");
+
+  const favoritedIds = (favoriteRows ?? []).map((r) => r.article_id as string);
+  const dismissedIds = new Set(
+    (dismissedRows ?? []).map((r) => r.article_id as string),
+  );
+
   // Server Component : rendu une fois par requête, jamais réexécuté côté client.
   // L'âge est calculé ici précisément pour éviter la divergence d'hydratation
   // que produisait le même appel dans article-feed.tsx.
@@ -68,6 +81,7 @@ export default async function DashboardPage() {
     })
     .filter((article): article is NonNullable<typeof article> => {
       if (!article || seen.has(article.id)) return false;
+      if (dismissedIds.has(article.id)) return false;
       seen.add(article.id);
       return true;
     });
@@ -100,7 +114,7 @@ export default async function DashboardPage() {
       {articles.length === 0 ? (
         <ArticlesEmptyState />
       ) : (
-        <ArticleFeed articles={articles} />
+        <ArticleFeed articles={articles} favoritedIds={favoritedIds} />
       )}
     </div>
   );
