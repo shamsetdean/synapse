@@ -6,14 +6,15 @@
 // décalages sont ceux de la charte.
 //
 // ÉCART VOLONTAIRE demandé : la charte dessine le sigle à 30 pixels. Il est
-// ici rendu à 44 pixels. Seule la taille d'affichage change ; le tracé, les
-// proportions et les animations restent identiques.
+// ici rendu à 60 pixels (augmenté sur demande du 15/08, précédemment 44px).
+// Seule la taille d'affichage change ; le tracé, les proportions et les
+// animations restent identiques.
 
 export default function SynapseMark() {
   return (
   <svg
-        width="44"
-        height="44" viewBox="0 0 40 40" style={{ flexShrink: 0 }}
+        width="60"
+        height="60" viewBox="0 0 40 40" style={{ flexShrink: 0 }}
         aria-hidden="true">
         <defs>
         <linearGradient id="logoGrad" x1="0" y1="0" x2="1" y2="1">
