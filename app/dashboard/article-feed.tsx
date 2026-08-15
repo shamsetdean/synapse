@@ -9,6 +9,7 @@ import {
 } from "react";
 import { ThumbsUp, ThumbsDown } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { useAnimatedNumber } from "./use-animated-number";
 import AgeFilterDial from "./age-filter-dial";
 import styles from "./dashboard.module.css";
 
@@ -214,6 +215,7 @@ export default function ArticleFeed({
   );
 
   const groups = groupByTopic(visibleArticles);
+  const animatedCount = useAnimatedNumber(visibleArticles.length, 450);
 
   // Animation d'entrée pilotée par le scroll : IntersectionObserver plutôt
   // que animation-timeline: view() (support Safari encore inégal, et déjà
@@ -258,7 +260,7 @@ export default function ArticleFeed({
     <div className={styles.articleFeedRoot}>
       <div className={styles.articleFilterBar}>
         <span className={styles.sectionCount}>
-          {visibleArticles.length} correspondance
+          {animatedCount} correspondance
           {visibleArticles.length > 1 ? "s" : ""} affichée
           {visibleArticles.length > 1 ? "s" : ""}
           {visibleArticles.length !== remainingArticles.length &&

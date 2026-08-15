@@ -633,8 +633,7 @@
 .ageDialLabelActive {
   color: var(--violet-deep);
   border-color: var(--violet);
-  box-shadow: 0 0 0 3px rgba(139, 124, 246, 0.18);
-  transform: translate(-50%, -50%) scale(1.08);
+  animation: pulseCentered 2.4s ease-in-out infinite;
 }
 
 .topicGroups {
@@ -786,7 +785,7 @@
   display: flex;
   gap: var(--sy-space-8);
   padding-top: var(--sy-space-8);
-  margin-top: var(--sy-space-2);
+  margin-top: auto;
   border-top: var(--sy-border-width) solid var(--line);
 }
 
@@ -1143,11 +1142,34 @@
   cursor: pointer;
   text-align: right;
   line-height: var(--sy-leading-tight);
+  transition: color var(--sy-duration-fast) var(--sy-ease),
+    transform var(--sy-duration-fast) var(--sy-ease);
+}
+
+.navLegend:hover {
+  color: var(--violet-deep);
+}
+
+.navLegend:active {
+  transform: scale(0.96);
 }
 
 .navLegendActive {
   color: var(--ink);
   font-weight: var(--sy-weight-bold);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sy-space-6);
+}
+
+.navLegendActive::after {
+  content: "";
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--violet);
+  animation: pulseNode 1.8s ease-in-out infinite;
+  flex-shrink: 0;
 }
 
 .navRingWrap {
