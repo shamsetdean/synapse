@@ -471,6 +471,43 @@
   gap: var(--sy-space-12);
 }
 
+/* Regroupement des cartes par sujet de veille */
+.topicGroups {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sy-space-24);
+}
+
+.topicGroup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sy-space-14);
+}
+
+.topicGroupHead {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sy-space-10);
+  padding-bottom: var(--sy-space-8);
+  border-bottom: var(--sy-border-width) solid var(--line);
+}
+
+.topicGroupName {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--sy-size-12);
+  font-weight: var(--sy-weight-semibold);
+  color: var(--violet);
+  text-transform: uppercase;
+  letter-spacing: var(--sy-tracking-wide);
+}
+
+.topicGroupCount {
+  font-family: var(--font-mono);
+  font-size: var(--sy-size-10-5);
+  color: var(--ink-dim);
+}
+
 .articleCard {
   display: flex;
   flex-direction: column;
