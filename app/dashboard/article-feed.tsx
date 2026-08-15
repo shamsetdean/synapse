@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import styles from "./dashboard.module.css";
 
 type FeedArticle = {
@@ -83,7 +83,24 @@ export default function ArticleFeed({
 }: {
   articles: FeedArticle[];
 }) {
-  const groups = groupByTopic(articles);
+  // Masqués par défaut : la fraîcheur perd son sens au-delà de 72h, et le
+  // flux mélangeait des articles vieux de plusieurs centaines de jours à
+  // des articles du jour. Le bouton permet de les faire réapparaître sans
+  // recharger la page.
+  const [showArchived, setShowArchived] = useState(false);
+  const archivedCount = useMemo(
+    () => articles.filter((article) => article.ageHours >= 72).length,
+    [articles],
+  );
+  const visibleArticles = useMemo(
+    () =>
+      showArchived
+        ? articles
+        : articles.filter((article) => article.ageHours < 72),
+    [articles, showArchived],
+  );
+
+  const groups = groupByTopic(visibleArticles);
 
   // Animation d'entrée pilotée par le scroll : IntersectionObserver plutôt
   // que animation-timeline: view() (support Safari encore inégal, et déjà
@@ -121,71 +138,106 @@ export default function ArticleFeed({
     );
     cards.forEach((el) => observer.observe(el));
     return () => observer.disconnect();
-  }, [articles]);
+  }, [visibleArticles]);
 
   return (
-    <div className={styles.topicGroups}>
-      {groups.map((group) => (
-        <section key={group.name} className={styles.topicGroup}>
-          <div className={styles.topicGroupHead}>
-            <h3 className={styles.topicGroupName}>{group.name}</h3>
-            <span className={styles.topicGroupCount}>
-              {group.items.length} article
-              {group.items.length > 1 ? "s" : ""}
-            </span>
+    <div className={styles.articleFeedRoot}>
+      <div className={styles.articleFilterBar}>
+        <span className={styles.sectionCount}>
+          {visibleArticles.length} correspondance
+          {visibleArticles.length > 1 ? "s" : ""} affichée
+          {visibleArticles.length > 1 ? "s" : ""}
+        </span>
+        {archivedCount > 0 && (
+          <button
+            type="button"
+            onClick={() => setShowArchived((v) => !v)}
+            className={`${styles.editToggle} ${
+              showArchived ? styles.editToggleActive : ""
+            }`}
+          >
+            {showArchived
+              ? `Masquer les archivés (${archivedCount})`
+              : `Afficher les archivés (${archivedCount})`}
+          </button>
+        )}
+      </div>
+
+      {visibleArticles.length === 0 ? (
+        <div className={styles.emptyBlock}>
+          <div className={styles.emptyTitle}>Rien de récent en ce moment</div>
+          <div className={styles.emptyText}>
+            Tous les articles collectés ont plus de 72 heures. Clique sur
+            « Afficher les archivés » ci-dessus pour les revoir.
           </div>
+        </div>
+      ) : (
+        <div className={styles.topicGroups}>
+          {groups.map((group) => (
+            <section key={group.name} className={styles.topicGroup}>
+              <div className={styles.topicGroupHead}>
+                <h3 className={styles.topicGroupName}>{group.name}</h3>
+                <span className={styles.topicGroupCount}>
+                  {group.items.length} article
+                  {group.items.length > 1 ? "s" : ""}
+                </span>
+              </div>
 
-          <div className={styles.articleGrid}>
-            {group.items.map(({ article, index }) => {
-              const fresh = Math.max(
-                0,
-                Math.min(1, 1 - article.ageHours / 72),
-              );
-              const color = mixColor("#4a473f", "#8b7cf6", fresh);
-              const archived = article.ageHours >= 72;
+              <div className={styles.articleGrid}>
+                {group.items.map(({ article, index }) => {
+                  const fresh = Math.max(
+                    0,
+                    Math.min(1, 1 - article.ageHours / 72),
+                  );
+                  const color = mixColor("#4a473f", "#8b7cf6", fresh);
+                  const archived = article.ageHours >= 72;
 
-              return (
-                <a
-                  key={article.id}
-                  ref={registerCard(article.id)}
-                  href={article.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className={`${styles.articleCard} ${
-                    archived ? styles.articleCardArchived : ""
-                  }`}
-                  style={{ transitionDelay: `${(index % 6) * 0.05}s` }}
-                >
-                  <div className={styles.articleSource}>
-                    {article.sourceName}
-                  </div>
-                  <div className={styles.articleTitle}>{article.title}</div>
+                  return (
+                    <a
+                      key={article.id}
+                      ref={registerCard(article.id)}
+                      href={article.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={`${styles.articleCard} ${
+                        archived ? styles.articleCardArchived : ""
+                      }`}
+                      style={{ transitionDelay: `${(index % 6) * 0.05}s` }}
+                    >
+                      <div className={styles.articleSource}>
+                        {article.sourceName}
+                      </div>
+                      <div className={styles.articleTitle}>
+                        {article.title}
+                      </div>
 
-                  <div className={styles.gaugeRow}>
-                    <div className={styles.gaugeLabel}>FRAÎCHEUR</div>
-                    <div className={styles.gaugeTrack}>
-                      <div
-                        className={styles.gaugeFill}
-                        style={{
-                          width: `${(fresh * 100).toFixed(0)}%`,
-                          background: color,
-                        }}
-                      />
-                    </div>
-                  </div>
+                      <div className={styles.gaugeRow}>
+                        <div className={styles.gaugeLabel}>FRAÎCHEUR</div>
+                        <div className={styles.gaugeTrack}>
+                          <div
+                            className={styles.gaugeFill}
+                            style={{
+                              width: `${(fresh * 100).toFixed(0)}%`,
+                              background: color,
+                            }}
+                          />
+                        </div>
+                      </div>
 
-                  <div className={styles.articleAgeRow}>
-                    <span className={styles.articleAge} style={{ color }}>
-                      {ageLabel(article.ageHours)}
-                      {archived ? " (archivé)" : ""}
-                    </span>
-                  </div>
-                </a>
-              );
-            })}
-          </div>
-        </section>
-      ))}
+                      <div className={styles.articleAgeRow}>
+                        <span className={styles.articleAge} style={{ color }}>
+                          {ageLabel(article.ageHours)}
+                          {archived ? " (archivé)" : ""}
+                        </span>
+                      </div>
+                    </a>
+                  );
+                })}
+              </div>
+            </section>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
