@@ -472,6 +472,20 @@
 }
 
 /* Regroupement des cartes par sujet de veille */
+.articleFeedRoot {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sy-space-20);
+}
+
+.articleFilterBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--sy-space-10);
+}
+
 .topicGroups {
   display: flex;
   flex-direction: column;

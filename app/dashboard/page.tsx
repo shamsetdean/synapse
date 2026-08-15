@@ -96,12 +96,6 @@ export default async function DashboardPage() {
     <div className={styles.main}>
       <div className={styles.articleHead}>
         <h2 className={styles.sectionH2}>Articles</h2>
-        {articles.length > 0 && (
-          <span className={styles.sectionCount}>
-            ({articles.length} correspondance{articles.length > 1 ? "s" : ""} les
-            plus récentes)
-          </span>
-        )}
       </div>
       {articles.length === 0 ? (
         <ArticlesEmptyState />
