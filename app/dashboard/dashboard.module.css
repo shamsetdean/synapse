@@ -486,6 +486,11 @@
   gap: var(--sy-space-10);
 }
 
+.ageFilterGroup {
+  display: flex;
+  gap: var(--sy-space-6);
+}
+
 .topicGroups {
   display: flex;
   flex-direction: column;
