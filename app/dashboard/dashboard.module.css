@@ -310,6 +310,18 @@
   font-weight: var(--sy-weight-semibold);
   font-size: var(--sy-size-13-5);
   cursor: pointer;
+  transition: border-color var(--sy-duration-fast) var(--sy-ease),
+    color var(--sy-duration-fast) var(--sy-ease),
+    transform var(--sy-duration-fast) var(--sy-ease);
+}
+
+.btnOutline:hover:not(:disabled) {
+  border-color: var(--violet);
+  color: var(--violet-deep);
+}
+
+.btnOutline:active:not(:disabled) {
+  transform: scale(0.97);
 }
 
 .btnSolid {
@@ -322,6 +334,16 @@
   font-weight: var(--sy-weight-semibold);
   font-size: var(--sy-size-13-5);
   cursor: pointer;
+  transition: opacity var(--sy-duration-fast) var(--sy-ease),
+    transform var(--sy-duration-fast) var(--sy-ease);
+}
+
+.btnSolid:hover:not(:disabled) {
+  opacity: 0.85;
+}
+
+.btnSolid:active:not(:disabled) {
+  transform: scale(0.97);
 }
 
 .btnOutline:disabled,
@@ -347,8 +369,15 @@
   gap: var(--sy-space-10);
   transition: opacity var(--sy-duration-fast) var(--sy-ease),
     transform var(--sy-duration-base) var(--sy-ease),
-    border-color var(--sy-duration-base) var(--sy-ease);
+    border-color var(--sy-duration-base) var(--sy-ease),
+    box-shadow var(--sy-duration-base) var(--sy-ease);
   animation: cardIn 0.45s var(--sy-ease) both;
+}
+
+.topicCard:hover {
+  border-color: var(--violet);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(109, 95, 208, 0.12);
 }
 
 /* Un sujet en pause est atténué. ÉCART VOLONTAIRE demandé : la charte fixe
@@ -391,6 +420,8 @@
   padding: var(--sy-space-3) var(--sy-space-8);
   border-radius: var(--sy-radius-20);
   white-space: nowrap;
+  transition: background var(--sy-duration-base) var(--sy-ease),
+    color var(--sy-duration-base) var(--sy-ease);
 }
 
 .statusPillActive {
@@ -440,6 +471,21 @@
   border-radius: var(--sy-radius-8);
   padding: var(--sy-space-4) var(--sy-space-10);
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sy-space-6);
+  transition: border-color var(--sy-duration-fast) var(--sy-ease),
+    color var(--sy-duration-fast) var(--sy-ease),
+    transform var(--sy-duration-fast) var(--sy-ease);
+}
+
+.pauseBtn:hover:not(:disabled) {
+  border-color: var(--violet);
+  color: var(--violet-deep);
+}
+
+.pauseBtn:active:not(:disabled) {
+  transform: scale(0.96);
 }
 
 .deleteBtn {
@@ -450,6 +496,29 @@
   border: none;
   cursor: pointer;
   padding: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sy-space-6);
+  transition: opacity var(--sy-duration-fast) var(--sy-ease),
+    transform var(--sy-duration-fast) var(--sy-ease);
+}
+
+.deleteBtn:hover:not(:disabled) {
+  opacity: 0.7;
+}
+
+.deleteBtn:active:not(:disabled) {
+  transform: scale(0.96);
+}
+
+.btnSpinner {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  border: 1.5px solid currentColor;
+  border-top-color: transparent;
+  animation: spinFast 0.7s linear infinite;
+  flex-shrink: 0;
 }
 
 .pauseBtn:disabled,

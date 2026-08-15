@@ -92,6 +92,7 @@ export default function TopicCard({ topic }: { topic: Topic }) {
           disabled={loading}
           className={styles.pauseBtn}
         >
+          {loading && <span className={styles.btnSpinner} aria-hidden="true" />}
           {paused ? "Reprendre" : "Pause"}
         </button>
         <button
@@ -100,6 +101,7 @@ export default function TopicCard({ topic }: { topic: Topic }) {
           disabled={loading}
           className={styles.deleteBtn}
         >
+          {loading && <span className={styles.btnSpinner} aria-hidden="true" />}
           Supprimer
         </button>
       </div>
