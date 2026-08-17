@@ -16,12 +16,18 @@ type DashboardStats = {
   daily_evolution: { day: string; count: number }[];
 };
 
-// Couleurs de langue de la charte.
+// Couleurs de langue de la charte v2. Utilisées comme chaînes CSS (conic-
+// gradient, background inline) et non interpolées en JS : contrairement à
+// article-feed.tsx, var(--sy-...) fonctionne ici sans recalcul.
+// LANG_FALLBACK doit rester un segment de donut visiblement distinct sur
+// fond sombre : --sy-muted (plus clair que --sy-muted-dim) plutôt que le
+// jeton le plus proche en teinte de l'ancien #c9c2b0, pour préserver ce
+// contraste plutôt que juste la valeur.
 const LANG_COLORS: Record<string, string> = {
-  fr: "#8b7cf6",
-  en: "#6d5fd0",
+  fr: "var(--sy-accent)",
+  en: "var(--sy-accent-deep)",
 };
-const LANG_FALLBACK = "#c9c2b0";
+const LANG_FALLBACK = "var(--sy-muted)";
 
 // La collecte tourne toutes les 20 minutes (voir le pied de page), donc les
 // données elles-mêmes ne changent pas plus vite que ça. Interroger toutes les

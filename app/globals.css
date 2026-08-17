@@ -3,64 +3,81 @@
 @tailwind utilities;
 
 /* ==========================================================================
-   Synapse — jetons de la charte graphique
+   Synapse — jetons de la charte graphique (v2)
 
    Toutes les valeurs de ce fichier sont relevées dans
-   Synapse_-_Identité_Visuelle.html. Aucune n'a été inventée, modifiée ni
-   arrondie. Les seuls ajouts, signalés comme tels, sont les points de
-   rupture pour l'adaptation aux écrans, absents de la charte.
+   synapse-charte-graphique-v2.md. Aucune n'a été inventée ni arrondie.
+
+   Remplace intégralement l'ancienne charte cream/violet clair (#f2ede3).
+   L'accent violet #8b7cf6 est conservé tel quel (thème DARK) ; le thème
+   LIGHT utilise désormais #6d5fd0 comme accent principal (ancien
+   --sy-accent-deep, dont la valeur ne change pas).
 
    Préfixe --sy- pour éviter toute collision avec Tailwind.
+
+   Thème : le projet n'a pas encore de bascule dark/light (pas de
+   next-themes ni de ThemeProvider en place). DARK est donc appliqué par
+   défaut sur :root, comme demandé. Le bloc LIGHT est prêt à être activé
+   via un attribut `data-theme="light"` posé sur <html> — attribut
+   standard chez next-themes (attribute="data-theme") — dès qu'un
+   sélecteur de thème sera introduit.
    ========================================================================== */
 
 :root {
-  /* --- Fonds ------------------------------------------------------------ */
-  --sy-bg-page: #f2ede3;
-  --sy-bg-card: #f7f3e9;
-  --sy-bg-input: #fbf8f1;
-  --sy-bg-track: #e9e2d2;
-  --sy-bg-ring-inactive: #e2dcc9;
+  color-scheme: dark;
 
-  /* --- Bordures --------------------------------------------------------- */
-  --sy-border: #d9d2c2;
-  --sy-border-dashed: #c9c2b0;
-  --sy-border-alert: #d8b9b3;
+  /* --- Palette DARK (par défaut) ----------------------------------------- */
+  --sy-bg: #07070b;
+  --sy-text: #eeeef2;
+  --sy-text-secondary: #a3a1ab;
+  --sy-muted: #75747f;
+  --sy-muted-dim: #5c5b64;
+  --sy-card-bg: rgba(255, 255, 255, 0.045);
+  --sy-card-bg-hover: rgba(255, 255, 255, 0.075);
+  --sy-border: rgba(255, 255, 255, 0.1);
+  --sy-border-strong: rgba(255, 255, 255, 0.14);
+  --sy-input-bg: rgba(255, 255, 255, 0.05);
+  --sy-header-bg: rgba(7, 7, 11, 0.6);
+  --sy-accent: #8b7cf6;
+  --sy-accent-text: #a595f8;
+  --sy-grid-line: rgba(139, 124, 246, 0.055);
+  --sy-aurora-top: rgba(139, 124, 246, 0.14);
+  --sy-aurora-bottom: rgba(109, 95, 208, 0.1);
+  --sy-ring-center: rgba(20, 18, 28, 0.5);
+  --sy-chip-bg: rgba(255, 255, 255, 0.06);
+  --sy-chip-border: rgba(255, 255, 255, 0.08);
+
+  /* --- Accent translucide — AJOUT, dérivé de l'accent du thème -----------
+     Absent de la charte v2 telle quelle ; nécessaire pour les fonds
+     d'états actifs (pastilles, boutons validés) qui reprenaient
+     auparavant --sy-accent-a15 / --sy-accent-a12. Densité ~15%,
+     recalculée par thème comme les autres tons d'accent translucides
+     ci-dessus (aurora, grid-line).
+     -------------------------------------------------------------------- */
+  --sy-accent-wash: rgba(139, 124, 246, 0.15);
+
+  /* --- Couleurs sémantiques — indépendantes du thème --------------------- */
+  --sy-success: #3fb87f;
+  --sy-alert: #d16b60;
+  --sy-accent-deep: #6d5fd0;
+  --sy-accent-gradient: linear-gradient(135deg, #8b7cf6, #6d5fd0);
+  --sy-accent-gradient-from: #8b7cf6;
+  --sy-accent-gradient-to: #6d5fd0;
+  --sy-white: #fff;
+
+  /* --- Effet verre (glassmorphism) — section 6 --------------------------- */
+  --sy-glass-blur: 20px;
+
+  /* --- Bordures — largeur générique --------------------------------------
+     Non colorée, non spécifique à l'ancienne charte : conservée telle
+     quelle.
+     -------------------------------------------------------------------- */
   --sy-border-width: 1px;
 
-  /* --- Textes ----------------------------------------------------------- */
-  --sy-text: #1a1a1a;
-  --sy-text-mid: #5b5a53;
-  --sy-text-dim: #8a8478;
-
-  /* --- Accents ---------------------------------------------------------- */
-  --sy-accent: #8b7cf6;
-  --sy-accent-deep: #6d5fd0;
-
-  /* --- États ------------------------------------------------------------ */
-  --sy-alert: #a4453b;
-  --sy-sync-active: #7fae7f;
-  --sy-sync-idle: #c9c2b0;
-
-  /* --- Jauge de fraîcheur ----------------------------------------------- */
-  --sy-fresh-cold: #4a473f;
-  --sy-fresh-warm: #8b7cf6;
-
-  /* --- Accents translucides --------------------------------------------- */
-  --sy-accent-a90: rgba(139, 124, 246, 0.9);
-  --sy-accent-a60: rgba(139, 124, 246, 0.6);
-  --sy-accent-a45: rgba(139, 124, 246, 0.45);
-  --sy-accent-a25: rgba(139, 124, 246, 0.25);
-  --sy-accent-a15: rgba(139, 124, 246, 0.15);
-  --sy-accent-a12: rgba(139, 124, 246, 0.12);
-  --sy-accent-a00: rgba(139, 124, 246, 0);
-  --sy-accent-deep-a50: rgba(109, 95, 208, 0.5);
-  --sy-accent-deep-a14: rgba(109, 95, 208, 0.14);
-  --sy-page-a92: rgba(242, 237, 227, 0.92);
-
-  /* --- Familles typographiques ------------------------------------------
+  /* --- Familles typographiques --------------------------------------------
      --font-display et --font-mono sont fournies par next/font depuis
-     app/layout.tsx, qui sert les fichiers depuis le domaine du site. Les
-     noms sont ceux déjà employés par les styles existants du dashboard.
+     app/layout.tsx (Space Grotesk / IBM Plex Mono), qui sert les fichiers
+     depuis le domaine du site.
      -------------------------------------------------------------------- */
   --sy-font-sans: var(--font-display), sans-serif;
   --sy-font-mono: var(--font-mono), monospace;
@@ -94,22 +111,47 @@
   --sy-leading-snug: 1.35;
   --sy-leading-normal: 1.5;
 
-  /* --- Interlettrage ---------------------------------------------------- */
+  /* --- Interlettrage ------------------------------------------------------
+     La charte v2 demande, pour les labels/data en mono : majuscules avec
+     letter-spacing 0.03em à 0.08em (section 4).
+     -------------------------------------------------------------------- */
   --sy-tracking-tight: 0.01em;
   --sy-tracking-wide: 0.04em;
   --sy-tracking-wider: 0.05em;
+  --sy-tracking-label-min: 0.03em;
+  --sy-tracking-label-max: 0.08em;
 
-  /* --- Rayons ----------------------------------------------------------- */
+  /* --- Rayons — échelle brute --------------------------------------------
+     Complétée avec 6px et 18px, absents de l'ancienne échelle mais requis
+     par la table de la section 5 de la charte v2 (badges/chips = 6px ;
+     cards = jusqu'à 18px).
+     -------------------------------------------------------------------- */
   --sy-radius-3: 3px;
   --sy-radius-4: 4px;
+  --sy-radius-6: 6px;
   --sy-radius-8: 8px;
   --sy-radius-9: 9px;
   --sy-radius-10: 10px;
   --sy-radius-12: 12px;
   --sy-radius-14: 14px;
   --sy-radius-16: 16px;
+  --sy-radius-18: 18px;
   --sy-radius-20: 20px;
   --sy-radius-full: 50%;
+
+  /* --- Rayons — sémantique (table section 5) -----------------------------
+     Les plages de la charte (ex. "16-18px") sont bornées par deux jetons ;
+     le composant migré choisira l'une des deux bornes selon sa densité.
+     -------------------------------------------------------------------- */
+  --sy-radius-card: var(--sy-radius-16);
+  --sy-radius-card-lg: var(--sy-radius-18);
+  --sy-radius-btn-primary: var(--sy-radius-12);
+  --sy-radius-btn-primary-sm: var(--sy-radius-10);
+  --sy-radius-btn-secondary: var(--sy-radius-4);
+  --sy-radius-icon: var(--sy-radius-full);
+  --sy-radius-badge: var(--sy-radius-6);
+  --sy-radius-input: var(--sy-radius-10);
+  --sy-radius-input-sm: var(--sy-radius-6);
 
   /* --- Espacements ------------------------------------------------------ */
   --sy-space-2: 2px;
@@ -152,13 +194,10 @@
   --sy-duration-gauge: 0.6s;
 
   /* --- Points de rupture ------------------------------------------------
-     AJOUT. La charte n'en contient aucun. Ces valeurs sont mes décisions
-     d'organisation, prises pour respecter la demande d'adaptation à tous
-     les écrans. Elles ne modifient aucune valeur graphique : seule la
-     disposition change, jamais les couleurs, les tailles de police ni les
-     rayons. Les variables CSS n'étant pas utilisables dans une requête
-     média, elles sont ici à titre documentaire et reprises littéralement
-     dans les modules.
+     AJOUT, absent de la charte. Décisions d'organisation pour l'adaptation
+     à tous les écrans ; ne modifient aucune valeur graphique. Les variables
+     CSS n'étant pas utilisables dans une requête média, elles sont ici à
+     titre documentaire et reprises littéralement dans les modules.
 
        Mobile   : jusqu'à 639px
        Tablette : de 640px à 899px
@@ -168,12 +207,43 @@
 }
 
 /* ==========================================================================
-   Règles de base — valeurs de la charte
+   Palette LIGHT — section 2 de la charte v2.
+   Prête à être activée via [data-theme="light"] sur <html> (ou tout
+   ancêtre) dès qu'un sélecteur de thème sera branché.
+   ========================================================================== */
+
+[data-theme="light"] {
+  color-scheme: light;
+
+  --sy-bg: #f7f6fb;
+  --sy-text: #14141a;
+  --sy-text-secondary: #4a4954;
+  --sy-muted: #7c7a86;
+  --sy-muted-dim: #9694a0;
+  --sy-card-bg: rgba(255, 255, 255, 0.55);
+  --sy-card-bg-hover: rgba(255, 255, 255, 0.8);
+  --sy-border: rgba(20, 20, 26, 0.08);
+  --sy-border-strong: rgba(20, 20, 26, 0.13);
+  --sy-input-bg: rgba(255, 255, 255, 0.6);
+  --sy-header-bg: rgba(247, 246, 251, 0.6);
+  --sy-accent: #6d5fd0;
+  --sy-accent-text: #6d5fd0;
+  --sy-grid-line: rgba(109, 95, 208, 0.06);
+  --sy-aurora-top: rgba(139, 124, 246, 0.12);
+  --sy-aurora-bottom: rgba(109, 95, 208, 0.08);
+  --sy-ring-center: rgba(255, 255, 255, 0.6);
+  --sy-chip-bg: rgba(255, 255, 255, 0.4);
+  --sy-chip-border: rgba(20, 20, 26, 0.06);
+  --sy-accent-wash: rgba(109, 95, 208, 0.15);
+}
+
+/* ==========================================================================
+   Règles de base — valeurs de la charte v2, section 4
    ========================================================================== */
 
 body {
   margin: 0;
-  background: var(--sy-bg-page);
+  background: var(--sy-bg);
   color: var(--sy-text);
   font-family: var(--sy-font-sans);
   -webkit-font-smoothing: antialiased;
@@ -181,11 +251,11 @@ body {
 
 ::selection {
   background: var(--sy-accent);
-  color: var(--sy-bg-page);
+  color: var(--sy-bg);
 }
 
 a {
-  color: var(--sy-accent-deep);
+  color: var(--sy-accent-text);
 }
 
 a:hover {
@@ -193,8 +263,30 @@ a:hover {
 }
 
 /* ==========================================================================
-   Animations — les douze déclarées dans la charte, reproduites à
-   l'identique. Aucune n'a été ajoutée, retirée ni modifiée.
+   Effet verre (glassmorphism) — section 6 de la charte v2.
+   Utilitaire global, à combiner avec un fond var(--sy-card-bg) et une
+   bordure var(--sy-border) au niveau des composants migrés.
+   ========================================================================== */
+
+.sy-glass {
+  backdrop-filter: blur(var(--sy-glass-blur));
+  -webkit-backdrop-filter: blur(var(--sy-glass-blur));
+}
+
+/* ==========================================================================
+   Animations — noyau hérité de l'ancienne charte, conservé pour les
+   composants pas encore migrés (shimmer, spinSlow, spinFast, pulseCentered,
+   fadeSlideIn, growBar, growBarV, donutIn, breathe, shimmerSweep,
+   breatheStrong). arriveFlash porte déjà le nom de la charte v2 (section 8)
+   sans changement de définition.
+
+   La charte v2 en introduit huit au total (section 8). Trois ont un usage
+   réel dans dashboard.module.css et sont définies ci-dessous : nodePulse
+   (remplace pulseNode), glowPulse (remplace pulseNode sur les dots de
+   statut), dataSpark (remplace synapseSpark). Les cinq autres
+   (fadeUp, particleFloat, activeGlow, indicatorGlow) seront ajoutées avec
+   les composants qui les utilisent réellement, pour éviter du mort-code.
+   fadeUp est ajoutée dans ce même passage (topicCard/sourceRow/counterCard).
    ========================================================================== */
 
 @keyframes shimmer {
@@ -202,15 +294,36 @@ a:hover {
   100% { background-position: 200% 0; }
 }
 
-@keyframes pulseNode {
+/* Section 8 : "indicateur analyse en cours" — pulsation de taille, 1.4s. */
+@keyframes nodePulse {
   0%, 100% {
     transform: scale(1);
-    box-shadow: 0 0 0 0 var(--sy-accent-a60);
+    box-shadow: 0 0 0 0 rgba(139, 124, 246, 0.6);
   }
   50% {
     transform: scale(1.25);
-    box-shadow: 0 0 0 8px var(--sy-accent-a15);
+    box-shadow: 0 0 0 8px rgba(139, 124, 246, 0.15);
   }
+}
+
+/* Section 8 : "dots de statut actif" — pulsation opacité/glow, 1.8-2s.
+   currentColor pour s'adapter à la couleur du dot porteur (succès, accent). */
+@keyframes glowPulse {
+  0%, 100% {
+    opacity: 1;
+    filter: drop-shadow(0 0 0 currentColor);
+  }
+  50% {
+    opacity: 0.6;
+    filter: drop-shadow(0 0 4px currentColor);
+  }
+}
+
+/* Section 8 : "apparition des cards" — translateY + fade, délai en cascade
+   possible côté composant. Amplitude scale conservée de l'ancien cardIn. */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(14px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 @keyframes spinSlow {
@@ -223,7 +336,7 @@ a:hover {
   to { transform: rotate(360deg); }
 }
 
-/* Comme pulseNode, mais en conservant le translate(-50%, -50%) nécessaire
+/* Comme nodePulse, mais en conservant le translate(-50%, -50%) nécessaire
    au centrage du label actif du cadran de fraîcheur sur son point. */
 @keyframes pulseCentered {
   0%, 100% {
@@ -239,11 +352,6 @@ a:hover {
 @keyframes fadeSlideIn {
   from { opacity: 0; transform: translateY(6px); }
   to { opacity: 1; transform: translateY(0); }
-}
-
-@keyframes cardIn {
-  from { opacity: 0; transform: translateY(14px) scale(0.98); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 @keyframes growBar {
@@ -271,7 +379,9 @@ a:hover {
   100% { transform: translateX(220%); }
 }
 
-@keyframes synapseSpark {
+/* Section 8 : "particule qui glisse sur une barre de progression" —
+   translation linéaire, 1.6s. Remplace synapseSpark (même définition). */
+@keyframes dataSpark {
   0% { left: 0%; opacity: 0; transform: translate(-50%, -50%) scale(0.4); }
   8% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
   42% { left: 100%; opacity: 1; transform: translate(-50%, -50%) scale(1); }
@@ -284,11 +394,10 @@ a:hover {
 }
 
 /* ==========================================================================
-   AJOUT à ta demande. La charte définit breathe à une amplitude de 1.045,
-   jugée trop discrète sur le sélecteur de vue. Cette variante ne remplace
-   pas breathe : elle s'y ajoute et n'est employée que par le sélecteur, de
-   sorte que le camembert de la vue Statistiques conserve exactement le
-   rythme du fichier de référence.
+   AJOUT conservé de l'ancienne charte. breathe est à une amplitude de
+   1.045, jugée trop discrète sur le sélecteur de vue. Cette variante ne
+   remplace pas breathe : elle s'y ajoute et n'est employée que par le
+   sélecteur.
    ========================================================================== */
 
 @keyframes breatheStrong {
@@ -297,10 +406,9 @@ a:hover {
 }
 
 /* ==========================================================================
-   AJOUT signalé. Neutralise les animations pour les seules personnes ayant
-   demandé un mouvement réduit dans les réglages de leur système. Pour tous
-   les autres, le rendu est strictement identique à la charte.
-   Retire ce bloc si tu ne le souhaites pas.
+   AJOUT conservé de l'ancienne charte. Neutralise les animations pour les
+   seules personnes ayant demandé un mouvement réduit dans les réglages de
+   leur système.
    ========================================================================== */
 
 @media (prefers-reduced-motion: reduce) {

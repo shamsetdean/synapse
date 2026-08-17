@@ -2,8 +2,10 @@
 
 import styles from "./dashboard.module.css";
 
-// Les tracés, rayons, dégradés et durées d'animation sont repris à
-// l'identique du fichier de charte. Rien n'a été recalculé.
+// Les tracés et rayons sont repris à l'identique du fichier de charte. Les
+// couleurs pointent vers les jetons de la charte v2 (app/globals.css) via
+// var(--sy-...) directement dans les attributs SVG, résolus par le
+// navigateur comme n'importe quelle valeur CSS d'attribut de présentation.
 
 const PAGES = [
   { key: "articles", name: "Articles" },
@@ -55,9 +57,9 @@ export default function NavRing({
         >
           <defs>
             <linearGradient id="navSpinGrad" x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0%" stopColor="#8b7cf6" stopOpacity="0" />
-              <stop offset="60%" stopColor="#8b7cf6" stopOpacity="0.9" />
-              <stop offset="100%" stopColor="#6d5fd0" />
+              <stop offset="0%" stopColor="var(--sy-accent-gradient-from)" stopOpacity="0" />
+              <stop offset="60%" stopColor="var(--sy-accent-gradient-from)" stopOpacity="0.9" />
+              <stop offset="100%" stopColor="var(--sy-accent-gradient-to)" />
             </linearGradient>
           </defs>
           <circle
@@ -91,9 +93,9 @@ export default function NavRing({
               x2="60"
               y2="60"
             >
-              <stop offset="0%" stopColor="#a89bf8" />
-              <stop offset="55%" stopColor="#8b7cf6" />
-              <stop offset="100%" stopColor="#6d5fd0" />
+              <stop offset="0%" stopColor="var(--sy-accent-text)" />
+              <stop offset="55%" stopColor="var(--sy-accent-gradient-from)" />
+              <stop offset="100%" stopColor="var(--sy-accent-gradient-to)" />
             </linearGradient>
           </defs>
 
@@ -101,7 +103,7 @@ export default function NavRing({
             <path
               key={p.key}
               d={SEGMENT_PATHS[p.key]}
-              fill={activePage === p.key ? "url(#navRingGrad)" : "#e2dcc9"}
+              fill={activePage === p.key ? "url(#navRingGrad)" : "var(--sy-border-strong)"}
               onClick={() => onChange(p.key)}
               className={styles.navSegment}
             />
@@ -111,8 +113,8 @@ export default function NavRing({
             cx="32"
             cy="32"
             r="14"
-            fill="#f2ede3"
-            stroke="#d9d2c2"
+            fill="var(--sy-ring-center)"
+            stroke="var(--sy-border)"
             strokeWidth="1"
           />
         </svg>

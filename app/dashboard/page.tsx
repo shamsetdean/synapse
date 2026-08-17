@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import SignOutButton from "./sign-out-button";
+import ThemeToggle from "./theme-toggle";
 import SynapseMark from "./synapse-mark";
 import NewTopicForm from "./new-topic-form";
 import TopicSortableList from "./topic-sortable-list";
@@ -101,7 +102,10 @@ export default async function DashboardPage() {
 
   const accountBlock = (
     <>
-      <SignOutButton />
+      <div className={styles.accountRow}>
+        <ThemeToggle />
+        <SignOutButton />
+      </div>
       <span className={styles.email}>{user.email}</span>
     </>
   );

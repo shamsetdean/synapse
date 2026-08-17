@@ -59,8 +59,8 @@ export default function AgeFilterDial({
             x2="112"
             y2="112"
           >
-            <stop offset="0%" stopColor="#a89bf8" />
-            <stop offset="100%" stopColor="#6d5fd0" />
+            <stop offset="0%" stopColor="var(--sy-accent-text)" />
+            <stop offset="100%" stopColor="var(--sy-accent-gradient-to)" />
           </linearGradient>
         </defs>
 

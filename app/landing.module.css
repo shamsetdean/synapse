@@ -1,19 +1,25 @@
 .page {
-  --bg-0: #111217;
-  --bg-2: #1c1d22;
-  --violet: #8b7cf6;
-  --violet-soft: #a89bf8;
-  --lavender: #c4b8ff;
-  --lavender-light: #e6e1ff;
-  --ink: #f5f4f7;
-  --ink-dim: #b3aecf;
-  --ink-muted: #7a7791;
-  --glass-bg: rgba(255, 255, 255, 0.045);
-  --glass-border: rgba(255, 255, 255, 0.12);
+  /* Alias locaux vers les jetons de la charte v2 (app/globals.css). La
+     charte ne distingue que deux teintes d'accent (accent, accentText) ;
+     --lavender rejoint donc --violet-soft sur --sy-accent-text au lieu de
+     sa propre teinte (#c4b8ff, absente de la charte). --lavender-light,
+     réservée au point le plus lumineux (pulseDot, nœuds du visuel), rejoint
+     le blanc pur de la charte plutôt que d'inventer un quatrième palier. */
+  --bg-0: var(--sy-bg);
+  --bg-2: var(--sy-card-bg);
+  --violet: var(--sy-accent);
+  --violet-soft: var(--sy-accent-text);
+  --lavender: var(--sy-accent-text);
+  --lavender-light: var(--sy-white);
+  --ink: var(--sy-text);
+  --ink-dim: var(--sy-text-secondary);
+  --ink-muted: var(--sy-muted);
+  --glass-bg: var(--sy-card-bg);
+  --glass-border: var(--sy-border);
 
-  background: radial-gradient(ellipse at 75% 15%, rgba(75, 63, 174, 0.22), transparent 55%), var(--bg-0);
+  background: radial-gradient(ellipse at 75% 15%, var(--sy-aurora-top), transparent 55%), var(--bg-0);
   color: var(--ink);
-  font-family: -apple-system, "Helvetica Neue", Arial, sans-serif;
+  font-family: var(--sy-font-sans);
   line-height: 1.5;
   min-height: 100vh;
 }
@@ -68,9 +74,9 @@
 }
 
 .btnPrimary {
-  background: linear-gradient(135deg, var(--violet), #6d5fd0);
+  background: var(--sy-accent-gradient);
   border: none;
-  color: #ffffff;
+  color: var(--sy-white);
 }
 
 .hero {
@@ -97,17 +103,15 @@
   color: var(--violet-soft);
 }
 
+/* glowPulse (charte v2, section 8 : "dots de statut actif") est définie une
+   seule fois dans app/globals.css et remplace l'ancien @keyframes pulse
+   local, qui en était une quasi-copie. */
 .pulseDot {
   width: 7px;
   height: 7px;
   border-radius: 50%;
   background: var(--lavender-light);
-  animation: pulse 1.8s ease-in-out infinite;
-}
-
-@keyframes pulse {
-  0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(196, 184, 255, 0.5); }
-  50% { opacity: 0.6; box-shadow: 0 0 0 6px rgba(196, 184, 255, 0); }
+  animation: glowPulse 1.8s ease-in-out infinite;
 }
 
 .page h1 {
@@ -168,7 +172,7 @@
   width: 36px;
   height: 36px;
   border-radius: 10px;
-  background: rgba(139, 124, 246, 0.15);
+  background: var(--sy-accent-wash);
   border: 1px solid rgba(139, 124, 246, 0.3);
   display: flex;
   align-items: center;
@@ -302,8 +306,8 @@
   display: inline-block;
   font-size: 11px;
   color: var(--lavender);
-  background: rgba(196, 184, 255, 0.12);
-  border: 1px solid rgba(196, 184, 255, 0.25);
+  background: rgba(139, 124, 246, 0.12);
+  border: 1px solid rgba(139, 124, 246, 0.25);
   padding: 2px 8px;
   border-radius: 6px;
   margin-bottom: 16px;
@@ -379,9 +383,9 @@
 }
 
 .editToggleActive {
-  background: linear-gradient(135deg, var(--violet), #6d5fd0);
+  background: var(--sy-accent-gradient);
   border: none;
-  color: #ffffff;
+  color: var(--sy-white);
 }
 
 .blockControls {

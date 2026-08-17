@@ -295,7 +295,15 @@ export default function ArticleFeed({
                     0,
                     Math.min(1, 1 - article.ageHours / 72),
                   );
-                  const color = mixColor("#4a473f", "#8b7cf6", fresh);
+                  // Les deux bornes reprennent des jetons de app/globals.css
+                  // (--sy-muted-dim et --sy-accent-gradient-from, thème DARK).
+                  // Recopiées en dur plutôt que lues via getComputedStyle :
+                  // le composant évite déjà toute API client-only pour que
+                  // le rendu serveur et l'hydratation ne divergent jamais
+                  // (voir le commentaire sur ageHours plus haut). À revoir
+                  // pour prendre en compte le thème LIGHT une fois le
+                  // ThemeProvider en place.
+                  const color = mixColor("#5c5b64", "#8b7cf6", fresh);
                   const archived = article.ageHours >= 72;
 
                   const isFavorited = favoriteIds.has(article.id);

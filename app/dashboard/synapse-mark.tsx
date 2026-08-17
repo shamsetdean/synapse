@@ -5,6 +5,10 @@
 // s'effacent en boucle, les nœuds pulsent. Toutes les durées et tous les
 // décalages sont ceux de la charte.
 //
+// Couleurs : dégradé accent théoriquement indépendant du thème (charte v2,
+// section 3), comme le sigle de nav-ring.tsx — un logo garde ses couleurs
+// de marque quel que soit le thème.
+//
 // ÉCART VOLONTAIRE demandé : la charte dessine le sigle à 30 pixels. Il est
 // ici rendu à 60 pixels (augmenté sur demande du 15/08, précédemment 44px).
 // Seule la taille d'affichage change ; le tracé, les proportions et les
@@ -33,8 +37,8 @@ export default function SynapseMark() {
         aria-hidden="true">
         <defs>
         <linearGradient id="logoGrad" x1="0" y1="0" x2="1" y2="1">
-        <stop offset="0%" stopColor="#8b7cf6"></stop>
-        <stop offset="100%" stopColor="#6d5fd0"></stop>
+        <stop offset="0%" stopColor="var(--sy-accent-gradient-from)"></stop>
+        <stop offset="100%" stopColor="var(--sy-accent-gradient-to)"></stop>
         </linearGradient>
         <filter id="logoGlow" x="-100%" y="-100%" width="300%" height="300%">
         <feGaussianBlur stdDeviation="2.2" result="blur"></feGaussianBlur>
