@@ -96,12 +96,6 @@
   letter-spacing: 0.01em;
 }
 
-.email {
-  font-family: var(--font-mono);
-  font-size: var(--sy-size-11);
-  color: var(--ink-dim);
-}
-
 .signOutBtn {
   display: inline-flex;
   align-items: center;
@@ -116,16 +110,111 @@
   cursor: pointer;
 }
 
-/* Regroupe le bouton de thème et le bouton de déconnexion sur une même
-   ligne : .account reste par ailleurs en colonne (adresse en dessous). */
-.accountRow {
-  display: flex;
-  align-items: center;
-  gap: var(--sy-space-8);
+/* --- Menu profil ---------------------------------------------------------
+   Remplace l'ancien affichage direct (bouton thème + déconnexion + email
+   côte à côte) dans la topbar. Voir profile-menu.tsx.
+   -------------------------------------------------------------------- */
+
+.profileMenu {
+  position: relative;
 }
 
-/* Même langage visuel que .signOutBtn (bordure fine, fond fantôme, radius-8),
-   en version carrée pour une icône seule plutôt qu'un libellé. */
+.profileMenuBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  border-radius: var(--sy-radius-full);
+  border: var(--sy-border-width) solid var(--line);
+  background: none;
+  color: var(--ink-dim);
+  cursor: pointer;
+  transition: border-color var(--sy-duration-fast) var(--sy-ease),
+    color var(--sy-duration-fast) var(--sy-ease);
+}
+
+.profileMenuBtn:hover,
+.profileMenuBtnOpen {
+  border-color: var(--violet);
+  color: var(--violet-deep);
+}
+
+.profileMenuPanel {
+  position: absolute;
+  top: calc(100% + var(--sy-space-8));
+  right: 0;
+  min-width: 220px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sy-space-2);
+  padding: var(--sy-space-6);
+  background: var(--card);
+  backdrop-filter: blur(var(--sy-glass-blur));
+  -webkit-backdrop-filter: blur(var(--sy-glass-blur));
+  border: var(--sy-border-width) solid var(--line);
+  border-radius: var(--sy-radius-card);
+  box-shadow: var(--sy-dock-shadow);
+  z-index: 60;
+  animation: fadeUp 0.15s var(--sy-ease) both;
+}
+
+.profileMenuItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sy-space-8);
+  width: 100%;
+  padding: var(--sy-space-8) var(--sy-space-10);
+  border-radius: var(--sy-radius-8);
+  border: none;
+  background: transparent;
+  color: var(--ink);
+  font-family: var(--font-mono);
+  font-size: var(--sy-size-11);
+  letter-spacing: var(--sy-tracking-tight);
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--sy-duration-fast) var(--sy-ease);
+}
+
+.profileMenuItem:hover {
+  background: var(--card-alt);
+}
+
+.profileMenuItemValue {
+  font-weight: var(--sy-weight-semibold);
+  color: var(--violet-deep);
+  letter-spacing: var(--sy-tracking-wide);
+}
+
+.profileMenuEmail {
+  padding: var(--sy-space-8) var(--sy-space-10);
+  font-family: var(--font-mono);
+  font-size: var(--sy-size-10-5);
+  color: var(--ink-dim);
+  border-top: var(--sy-border-width) solid var(--line);
+  border-bottom: var(--sy-border-width) solid var(--line);
+  margin: var(--sy-space-2) 0;
+  word-break: break-all;
+}
+
+.profileMenuSignOut {
+  display: flex;
+}
+
+.profileMenuSignOut .signOutBtn {
+  width: 100%;
+  justify-content: flex-start;
+  color: var(--danger);
+  border-color: transparent;
+}
+
+.profileMenuSignOut .signOutBtn:hover {
+  background: rgba(209, 107, 96, 0.1);
+}
+
 /* Structure reprise de synapse-structure-composants-v2.md, section 3 :
    bouton texte (SOMBRE/CLAIR), plus une icône seule comme avant. */
 .themeToggleBtn {
