@@ -22,13 +22,13 @@ export default function LoginPage() {
         <div className={loginStyles.card}>
           <div className={loginStyles.logoRow}>
             <svg width="26" height="26" viewBox="0 0 26 26">
-              <line x1="5" y1="5" x2="19" y2="5" stroke="#c4b8ff" strokeWidth="1.6" />
-              <line x1="19" y1="5" x2="5" y2="19" stroke="#c4b8ff" strokeWidth="1.6" />
-              <line x1="5" y1="19" x2="19" y2="19" stroke="#c4b8ff" strokeWidth="1.6" />
-              <circle cx="5" cy="5" r="3" fill="#e6e1ff" />
-              <circle cx="19" cy="5" r="3" fill="#a89bf8" />
-              <circle cx="5" cy="19" r="3" fill="#a89bf8" />
-              <circle cx="19" cy="19" r="3" fill="#e6e1ff" />
+              <line x1="5" y1="5" x2="19" y2="5" stroke="var(--lavender)" strokeWidth="1.6" />
+              <line x1="19" y1="5" x2="5" y2="19" stroke="var(--lavender)" strokeWidth="1.6" />
+              <line x1="5" y1="19" x2="19" y2="19" stroke="var(--lavender)" strokeWidth="1.6" />
+              <circle cx="5" cy="5" r="3" fill="var(--lavender-light)" />
+              <circle cx="19" cy="5" r="3" fill="var(--violet-soft)" />
+              <circle cx="5" cy="19" r="3" fill="var(--violet-soft)" />
+              <circle cx="19" cy="19" r="3" fill="var(--lavender-light)" />
             </svg>
             Synapse
           </div>

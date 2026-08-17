@@ -46,9 +46,12 @@ export default function DashboardShell({
         <div className={styles.brand}>{logo}</div>
 
         <div className={styles.account}>{signOutButton}</div>
-
-        <NavRing activePage={activePage} onChange={setActivePage} />
       </header>
+
+      {/* Dock flottant, position: fixed — n'a plus sa place dans la topbar
+          depuis la structure v2 (synapse-structure-composants-v2.md,
+          section 1). */}
+      <NavRing activePage={activePage} onChange={setActivePage} />
 
       <div style={{ display: activePage === "articles" ? "block" : "none" }}>
         {articlesSection}

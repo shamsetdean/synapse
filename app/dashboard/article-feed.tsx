@@ -7,7 +7,6 @@ import {
   useState,
   type MouseEvent,
 } from "react";
-import { ThumbsUp, ThumbsDown } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useAnimatedNumber } from "./use-animated-number";
 import AgeFilterDial from "./age-filter-dial";
@@ -295,7 +294,15 @@ export default function ArticleFeed({
                     0,
                     Math.min(1, 1 - article.ageHours / 72),
                   );
-                  const color = mixColor("#4a473f", "#8b7cf6", fresh);
+                  // Les deux bornes reprennent des jetons de app/globals.css
+                  // (--sy-muted-dim et --sy-accent-gradient-from, thème DARK).
+                  // Recopiées en dur plutôt que lues via getComputedStyle :
+                  // le composant évite déjà toute API client-only pour que
+                  // le rendu serveur et l'hydratation ne divergent jamais
+                  // (voir le commentaire sur ageHours plus haut). À revoir
+                  // pour prendre en compte le thème LIGHT une fois le
+                  // ThemeProvider en place.
+                  const color = mixColor("#5c5b64", "#8b7cf6", fresh);
                   const archived = article.ageHours >= 72;
 
                   const isFavorited = favoriteIds.has(article.id);
@@ -358,7 +365,7 @@ export default function ArticleFeed({
                             isFavorited ? styles.thumbBtnActive : ""
                           }`}
                         >
-                          <ThumbsUp size={14} strokeWidth={2.25} />
+                          <span aria-hidden="true">✓</span>
                         </button>
                         <button
                           type="button"
@@ -367,7 +374,7 @@ export default function ArticleFeed({
                           aria-label="Retirer, ne m'intéresse pas"
                           className={`${styles.thumbBtn} ${styles.thumbBtnDismiss}`}
                         >
-                          <ThumbsDown size={14} strokeWidth={2.25} />
+                          <span aria-hidden="true">✕</span>
                         </button>
                       </div>
                     </div>

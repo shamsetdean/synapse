@@ -1,29 +1,29 @@
 /* Les noms de variables locales sont conservés : les six cents lignes qui
    suivent continuent de fonctionner sans modification. Elles pointent
-   désormais vers les jetons de la charte définis dans app/globals.css, qui
-   devient la source de vérité unique.
+   désormais vers les jetons de la charte v2 définis dans app/globals.css,
+   qui devient la source de vérité unique.
 
    --font-display et --font-mono ne sont plus déclarées ici : elles sont
    fournies par next/font depuis app/layout.tsx, qui sert les fichiers de
    police depuis le domaine du site au lieu des serveurs de Google. */
 
 .page {
-  --cream: var(--sy-bg-page);
-  --card: var(--sy-bg-card);
-  --card-alt: var(--sy-bg-input);
+  --cream: var(--sy-bg);
+  --card: var(--sy-card-bg);
+  --card-alt: var(--sy-input-bg);
   --line: var(--sy-border);
-  --line-dashed: var(--sy-border-dashed);
+  --line-dashed: var(--sy-border);
   --ink: var(--sy-text);
-  --ink-dim: var(--sy-text-dim);
-  --ink-mid: var(--sy-text-mid);
-  --track: var(--sy-bg-track);
+  --ink-dim: var(--sy-muted-dim);
+  --ink-mid: var(--sy-text-secondary);
+  --track: var(--sy-chip-bg);
   --violet: var(--sy-accent);
   --violet-deep: var(--sy-accent-deep);
-  --violet-bg: var(--sy-accent-a12);
-  --good: var(--sy-sync-active);
+  --violet-bg: var(--sy-accent-wash);
+  --good: var(--sy-success);
 
-  /* Aligné sur la charte : le bouton Supprimer y est un texte simple en
-     #a4453b, sans fond ni bordure. */
+  /* Aligné sur la charte v2 : le bouton Supprimer reste un texte simple
+     dans la couleur d'alerte (--sy-alert), sans fond ni bordure. */
   --danger: var(--sy-alert);
   --danger-bg: transparent;
 
@@ -35,20 +35,25 @@
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+  /* Dégagement pour le dock flottant (position: fixed, ~48px de haut +
+     14px de marge) : sans ça, le pied de page reste caché derrière lui en
+     bas de scroll. */
+  padding-bottom: 90px;
 }
 
-/* Les douze animations de la charte sont définies une seule fois dans
-   app/globals.css. Elles étaient dupliquées ici, dans des versions parfois
-   divergentes : la définition de synapseSpark différait de celle de la
-   charte. Les modules CSS résolvent vers la définition globale lorsqu'un
-   nom d'animation n'est pas déclaré localement.
+/* La plupart des animations de la charte v2 sont définies une seule fois
+   dans app/globals.css. Trois portent désormais leur nom v2 (section 8) :
+   nodePulse et glowPulse remplacent l'ancien pulseNode selon l'usage
+   (taille vs glow), dataSpark remplace synapseSpark. Les modules CSS
+   résolvent vers la définition globale lorsqu'un nom d'animation n'est pas
+   déclaré localement.
 
    neuronTravel reste déclarée plus bas : elle n'appartient pas à la charte
    et sert uniquement au fil d'articles actuel, qui sera repris ensuite. */
 
 .page ::selection {
-  background: #8b7cf6;
-  color: #f2ede3;
+  background: var(--violet);
+  color: var(--cream);
 }
 
 .wrap {
@@ -63,25 +68,17 @@
   justify-content: space-between;
   gap: 16px;
   flex-wrap: wrap;
-  /* La charte réserve 240px à droite pour le sélecteur, et pose en plus une
-     marge fixe de 230px sur le bloc de compte. Ce couple est calibré pour
-     l'adresse fictive du fichier de référence et se rompt dès qu'une adresse
-     réelle est plus longue. La réserve est portée à 280px et la marge fixe
-     supprimée : le bloc de compte s'aligne alors naturellement sur le bord
-     de cette réserve, quelle que soit la longueur de l'adresse. */
-  padding: 16px 280px 16px 28px;
-  /* La charte fixe 112px, calculé pour un anneau de 104px respirant à une
-     amplitude de 1.045, soit 109px au maximum. L'amplitude a été portée à
-     1.09 (113px) puis à 1.2 le 15/08 (125px au pic) pour une respiration
-     nettement plus marquée. Hauteur portée à 136px pour l'accueillir avec
-     un peu de marge. */
-  min-height: 136px;
+  /* Le sélecteur de vue n'habite plus la topbar depuis la structure v2
+     (dock flottant, position: fixed en bas d'écran) : plus besoin de
+     réserve à droite ni de hauteur minimale calibrée pour un anneau. */
+  padding: 16px 28px;
   position: relative;
   border-bottom: 1px solid var(--line);
   position: sticky;
   top: 0;
-  background: rgba(242, 237, 227, 0.92);
-  backdrop-filter: blur(6px);
+  background: var(--sy-header-bg);
+  backdrop-filter: blur(var(--sy-glass-blur));
+  -webkit-backdrop-filter: blur(var(--sy-glass-blur));
   z-index: 40;
   box-sizing: border-box;
 }
@@ -117,6 +114,37 @@
   background: none;
   color: var(--ink-dim);
   cursor: pointer;
+}
+
+/* Regroupe le bouton de thème et le bouton de déconnexion sur une même
+   ligne : .account reste par ailleurs en colonne (adresse en dessous). */
+.accountRow {
+  display: flex;
+  align-items: center;
+  gap: var(--sy-space-8);
+}
+
+/* Même langage visuel que .signOutBtn (bordure fine, fond fantôme, radius-8),
+   en version carrée pour une icône seule plutôt qu'un libellé. */
+/* Structure reprise de synapse-structure-composants-v2.md, section 3 :
+   bouton texte (SOMBRE/CLAIR), plus une icône seule comme avant. */
+.themeToggleBtn {
+  padding: var(--sy-space-6) var(--sy-space-10);
+  border-radius: var(--sy-radius-10);
+  border: var(--sy-border-width) solid var(--line);
+  background: transparent;
+  color: var(--ink-dim);
+  font-family: var(--font-mono);
+  font-weight: var(--sy-weight-medium);
+  font-size: 9.5px;
+  letter-spacing: var(--sy-tracking-wide);
+  cursor: pointer;
+  transition: all var(--sy-duration-base) var(--sy-ease);
+  opacity: 0.7;
+}
+
+.themeToggleBtn:hover {
+  opacity: 1;
 }
 
 .main {
@@ -210,8 +238,8 @@
   justify-content: center;
   gap: 8px;
   width: 100%;
-  background: linear-gradient(135deg, #8b7cf6, #6d5fd0);
-  color: #f2ede3;
+  background: var(--sy-accent-gradient);
+  color: var(--sy-white);
   border: none;
   border-radius: 10px;
   padding: 10px 18px;
@@ -372,7 +400,7 @@
     transform var(--sy-duration-base) var(--sy-ease),
     border-color var(--sy-duration-base) var(--sy-ease),
     box-shadow var(--sy-duration-base) var(--sy-ease);
-  animation: cardIn 0.45s var(--sy-ease) both;
+  animation: fadeUp 0.45s var(--sy-ease) both;
 }
 
 .topicCard:hover {
@@ -426,7 +454,7 @@
 }
 
 .statusPillActive {
-  background: var(--sy-accent-a15);
+  background: var(--sy-accent-wash);
   color: var(--violet-deep);
 }
 
@@ -556,85 +584,60 @@
   gap: var(--sy-space-10);
 }
 
-/* Cadran de filtre de fraîcheur, façon horloge */
-.ageDial {
-  position: relative;
-  width: 108px;
-  height: 108px;
+/* Filtre de fraîcheur — mini-jauge + pilules horizontales. Structure reprise
+   de synapse-structure-composants-v2.md, section 2 (remplace l'ancien grand
+   cadran circulaire en croix 24H/72H/7J/TOUT). */
+.ageFilter {
+  display: flex;
+  align-items: center;
+  gap: var(--sy-space-8);
   flex-shrink: 0;
 }
 
-.ageDialSvg {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
+.ageGaugeSvg {
+  flex-shrink: 0;
   overflow: visible;
 }
 
-.ageDialSpin {
-  animation: spinSlow 14s linear infinite;
-  transform-origin: 50% 50%;
+.ageGaugeArc {
+  stroke: var(--ink-dim);
+  opacity: 0.4;
 }
 
-.ageDialFace {
-  fill: var(--card);
-  stroke: var(--line);
-  stroke-width: 1;
+.ageGaugeNeedle {
+  stroke: var(--sy-accent-gradient-from);
+  transition: transform 0.4s var(--sy-ease-spring);
 }
 
-.ageDialTick {
-  stroke: var(--line-dashed);
-  stroke-width: 2;
-  stroke-linecap: round;
-  transition: stroke var(--sy-duration-base) var(--sy-ease);
+.ageGaugeHub {
+  fill: var(--sy-accent-gradient-from);
 }
 
-.ageDialTickActive {
-  stroke: url(#ageDialGrad);
-  stroke-width: 3;
-  stroke-linecap: round;
+.ageFilterPills {
+  display: flex;
+  gap: var(--sy-space-2);
+  background: var(--track);
+  border-radius: var(--sy-radius-10);
+  padding: var(--sy-space-3);
 }
 
-.ageDialNeedle {
-  stroke: var(--violet-deep);
-  stroke-width: 2;
-  stroke-linecap: round;
-  transition: x2 0.4s var(--sy-ease), y2 0.4s var(--sy-ease);
-}
-
-.ageDialHub {
-  fill: var(--violet-deep);
-}
-
-.ageDialLabel {
-  position: absolute;
-  transform: translate(-50%, -50%);
+.ageFilterPill {
+  padding: 7px var(--sy-space-12);
+  border-radius: var(--sy-radius-8);
+  border: none;
   font-family: var(--font-mono);
-  font-size: var(--sy-size-9-5);
+  font-size: var(--sy-size-10-5);
   font-weight: var(--sy-weight-semibold);
   letter-spacing: var(--sy-tracking-wide);
-  color: var(--ink-dim);
-  background: var(--cream);
-  border: var(--sy-border-width) solid var(--line);
-  border-radius: var(--sy-radius-20);
-  padding: 3px 7px;
   cursor: pointer;
-  transition: color var(--sy-duration-fast) var(--sy-ease),
-    border-color var(--sy-duration-fast) var(--sy-ease),
-    box-shadow var(--sy-duration-fast) var(--sy-ease),
-    transform var(--sy-duration-fast) var(--sy-ease);
+  transition: all var(--sy-duration-base) var(--sy-ease);
+  background: transparent;
+  color: var(--ink-mid);
 }
 
-.ageDialLabel:hover {
-  border-color: var(--violet);
-  color: var(--violet-deep);
-}
-
-.ageDialLabelActive {
-  color: var(--violet-deep);
-  border-color: var(--violet);
-  animation: pulseCentered 2.4s ease-in-out infinite;
+.ageFilterPillActive {
+  background: var(--sy-accent-gradient);
+  color: var(--sy-white);
 }
 
 .topicGroups {
@@ -790,6 +793,10 @@
   border-top: var(--sy-border-width) solid var(--line);
 }
 
+/* Glyphes ✓/✕ plutôt que des icônes lucide-react — structure v2, section 4.
+   font-size/line-height explicites : le glyphe hérite sinon la taille de
+   texte ambiante du composant parent, trop discrète pour lire comme une
+   icône. */
 .thumbBtn {
   flex: 1;
   display: inline-flex;
@@ -800,6 +807,9 @@
   border: var(--sy-border-width) solid var(--line);
   background: transparent;
   color: var(--ink-mid);
+  font-size: 14px;
+  font-weight: var(--sy-weight-semibold);
+  line-height: 1;
   cursor: pointer;
   transition: border-color var(--sy-duration-fast) var(--sy-ease),
     color var(--sy-duration-fast) var(--sy-ease),
@@ -857,8 +867,8 @@
 
 .emptyCta {
   margin-top: var(--sy-space-6);
-  background: linear-gradient(135deg, #8b7cf6, #6d5fd0);
-  color: var(--cream);
+  background: var(--sy-accent-gradient);
+  color: var(--sy-white);
   border: none;
   border-radius: var(--sy-radius-10);
   padding: var(--sy-space-10) var(--sy-space-18);
@@ -886,7 +896,7 @@
   gap: 16px;
   flex-wrap: wrap;
   transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
-  animation: cardIn 0.4s ease both;
+  animation: fadeUp 0.4s ease both;
 }
 
 .sourceRow:hover {
@@ -907,8 +917,8 @@
   width: 38px;
   height: 38px;
   border-radius: 10px;
-  background: linear-gradient(135deg, #8b7cf6, #6d5fd0);
-  color: #f2ede3;
+  background: var(--sy-accent-gradient);
+  color: var(--sy-white);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -949,7 +959,7 @@
   font-family: var(--font-mono);
   font-size: var(--sy-size-9-5);
   color: var(--danger);
-  border: var(--sy-border-width) dashed var(--sy-border-alert);
+  border: var(--sy-border-width) dashed var(--danger);
   border-radius: 20px;
   padding: 2px 8px;
 }
@@ -994,11 +1004,11 @@
   border-radius: 4px;
   transform-origin: left;
   animation: growBar 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) both;
-  background: linear-gradient(90deg, #8b7cf6, #6d5fd0);
+  background: linear-gradient(90deg, var(--sy-accent-gradient-from), var(--sy-accent-gradient-to));
 }
 
 .reliabilityBarLow {
-  background: #c9c2b0;
+  background: var(--ink-dim);
 }
 
 .syncStatus {
@@ -1013,11 +1023,11 @@
   height: 7px;
   border-radius: 50%;
   background: var(--good);
-  animation: pulseNode 2.2s ease-in-out infinite;
+  animation: glowPulse 2.2s ease-in-out infinite;
 }
 
 .syncDotPending {
-  background: #c9c2b0;
+  background: var(--ink-dim);
   animation: none;
 }
 
@@ -1031,7 +1041,7 @@
   padding: 7px var(--sy-space-12);
   border-radius: var(--sy-radius-9);
   border: var(--sy-border-width) solid var(--line);
-  background: #fff;
+  background: var(--card);
   color: var(--ink);
   font-family: var(--font-mono);
   font-size: 11.5px;
@@ -1101,6 +1111,29 @@
   white-space: nowrap;
 }
 
+/* Indicateur LIVE — structure v2, section 3. */
+.liveIndicator {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sy-space-6);
+  font-family: var(--font-mono);
+  font-size: var(--sy-size-10);
+  font-weight: var(--sy-weight-semibold);
+  letter-spacing: var(--sy-tracking-wide);
+  color: var(--sy-success);
+  white-space: nowrap;
+}
+
+.liveDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--sy-success);
+  box-shadow: 0 0 6px var(--sy-success);
+  animation: glowPulse 2s ease-in-out infinite;
+  flex-shrink: 0;
+}
+
 /* ÉCART VOLONTAIRE demandé : la charte place l'adresse et le bouton côte à
    côte. Ils sont ici empilés, l'adresse sous le bouton. */
 .account {
@@ -1110,100 +1143,76 @@
   gap: var(--sy-space-6);
 }
 
-/* --- Sélecteur de vue -------------------------------------------------- */
+/* --- Sélecteur de vue — dock flottant -----------------------------------
+   Structure reprise de synapse-structure-composants-v2.md, section 1.
+   Remplace l'ancien anneau/roue SVG absolument positionné dans la topbar :
+   le dock est désormais fixed, indépendant d'elle (voir dashboard-shell.tsx).
+   -------------------------------------------------------------------- */
 
-.nav {
-  position: absolute;
-  top: 50%;
-  right: 28px;
-  transform: translateY(-50%);
+.navFade {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 150px;
+  background: linear-gradient(180deg, transparent, var(--cream) 60%);
+  pointer-events: none;
+  z-index: 45;
+}
+
+.navDock {
+  position: fixed;
+  left: 50%;
+  bottom: 14px;
+  transform: translateX(-50%);
   display: flex;
-  align-items: center;
-  gap: var(--sy-space-16);
+  gap: 3px;
+  background: var(--sy-dock-bg);
+  backdrop-filter: blur(var(--sy-glass-blur));
+  -webkit-backdrop-filter: blur(var(--sy-glass-blur));
+  border: var(--sy-border-width) solid var(--line);
+  border-radius: var(--sy-radius-16);
+  padding: var(--sy-space-4);
+  box-shadow: var(--sy-dock-shadow);
+  z-index: 50;
+  animation: dockIn 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
 
-.navLegends {
+.navDockBtn {
   display: flex;
-  flex-direction: column;
-  gap: var(--sy-space-3);
-  align-items: flex-end;
-}
-
-/* Les légendes sont de vrais boutons : elles portent la même apparence que
-   dans la charte, mais deviennent atteignables au clavier, ce que des
-   éléments SVG cliquables ne permettent pas. */
-.navLegend {
-  font-family: var(--font-mono);
-  font-size: var(--sy-size-10-5);
-  color: var(--ink-dim);
-  font-weight: var(--sy-weight-regular);
-  background: none;
-  border: none;
-  padding: 0;
-  cursor: pointer;
-  text-align: right;
-  line-height: var(--sy-leading-tight);
-  transition: color var(--sy-duration-fast) var(--sy-ease),
-    transform var(--sy-duration-fast) var(--sy-ease);
-}
-
-.navLegend:hover {
-  color: var(--violet-deep);
-}
-
-.navLegend:active {
-  transform: scale(0.96);
-}
-
-.navLegendActive {
-  color: var(--ink);
-  font-weight: var(--sy-weight-bold);
-  display: inline-flex;
   align-items: center;
   gap: var(--sy-space-6);
-}
-
-.navLegendActive::after {
-  content: "";
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--violet);
-  animation: pulseNode 1.6s ease-in-out infinite;
-  flex-shrink: 0;
-}
-
-.navRingWrap {
-  position: relative;
-  width: 104px;
-  height: 104px;
-  /* ÉCART VOLONTAIRE demandé : amplitude portée de 1.045 à 1.2 (demande du
-     15/08, l'anneau doit clairement "respirer") et durée resserrée à 2s. */
-  animation: breatheStrong 2s ease-in-out infinite;
-  display: inline-block;
-  flex-shrink: 0;
-}
-
-.navSpinner {
-  position: absolute;
-  inset: 0;
-  animation: spinSlow 14s linear infinite;
-  /* Corrigé : le SVG est rendu à 104px, donc le vrai centre est à 52px, pas
-     32px (qui provenait à tort du viewBox interne 0-64). L'ancienne valeur
-     faisait tourner l'anneau autour d'un point décalé plutôt que sur
-     lui-même — d'où l'impression que l'animation ne "marchait pas". */
-  transform-origin: 50% 50%;
-  pointer-events: none;
-}
-
-.navSegments {
-  position: absolute;
-  inset: 0;
-}
-
-.navSegment {
+  padding: var(--sy-space-8) var(--sy-space-14);
+  border-radius: var(--sy-radius-12);
+  border: none;
+  font-family: var(--font-mono);
+  font-weight: var(--sy-weight-semibold);
+  font-size: 11px;
+  letter-spacing: 0.06em;
   cursor: pointer;
-  transition: fill var(--sy-duration-slow) var(--sy-ease);
+  transition: all 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+  background: transparent;
+  color: var(--ink-mid);
+}
+
+.navDockBtnActive {
+  background: var(--sy-accent-gradient);
+  color: var(--sy-white);
+  animation: indicatorGlow 2.6s ease-in-out infinite;
+  transform: translateY(-2px);
+}
+
+.navDockDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--ink-dim);
+  transition: background 0.25s ease;
+  flex-shrink: 0;
+}
+
+.navDockBtnActive .navDockDot {
+  background: var(--sy-white);
 }
 
 /* --- Pied de page ------------------------------------------------------ */
@@ -1230,23 +1239,11 @@
    ========================================================================== */
 
 @media (max-width: 899px) {
-  /* Le sélecteur quitte le positionnement absolu et revient dans le flux :
-     la réserve de 280px à sa droite n'a plus lieu d'être. */
   .topbar {
     padding: var(--sy-space-16) 28px;
-    min-height: 0;
     flex-direction: column;
     align-items: stretch;
     gap: var(--sy-space-16);
-  }
-
-  .nav {
-    position: static;
-    transform: none;
-    /* Les légendes restent accolées à l'anneau, comme dans la charte, plutôt
-       que renvoyées à l'extrémité opposée de la ligne. */
-    justify-content: flex-end;
-    width: 100%;
   }
 
   .account {
@@ -1336,8 +1333,8 @@
   padding: var(--sy-space-10) var(--sy-space-18);
   border-radius: var(--sy-radius-10);
   border: none;
-  background: linear-gradient(135deg, #8b7cf6, #6d5fd0);
-  color: var(--cream);
+  background: var(--sy-accent-gradient);
+  color: var(--sy-white);
   font-family: var(--font-display);
   font-weight: var(--sy-weight-semibold);
   font-size: var(--sy-size-13-5);
@@ -1373,7 +1370,7 @@
   height: var(--sy-space-6);
   border-radius: var(--sy-radius-full);
   background: var(--violet);
-  animation: pulseNode 1.6s ease-in-out infinite;
+  animation: nodePulse 1.6s ease-in-out infinite;
 }
 
 .progressTitle {
@@ -1406,11 +1403,11 @@
 }
 
 .stageNodeReached {
-  background: linear-gradient(135deg, #8b7cf6, #6d5fd0);
+  background: var(--sy-accent-gradient);
 }
 
 .stageNodeActive {
-  animation: pulseNode 1.4s ease-in-out infinite;
+  animation: nodePulse 1.4s ease-in-out infinite;
 }
 
 .stageFlash {
@@ -1438,11 +1435,11 @@
   height: 2px;
   position: relative;
   overflow: visible;
-  background: var(--sy-bg-ring-inactive);
+  background: var(--sy-border-strong);
 }
 
 .stageLineDone {
-  background: linear-gradient(90deg, #8b7cf6, #6d5fd0);
+  background: linear-gradient(90deg, var(--sy-accent-gradient-from), var(--sy-accent-gradient-to));
 }
 
 .stageSpark {
@@ -1451,9 +1448,9 @@
   width: 5px;
   height: 5px;
   border-radius: var(--sy-radius-full);
-  background: var(--cream);
+  background: var(--sy-white);
   box-shadow: 0 0 6px 2px rgba(139, 124, 246, 0.9);
-  animation: synapseSpark 1.6s linear infinite;
+  animation: dataSpark 1.6s linear infinite;
 }
 
 .progressTrack {
@@ -1569,7 +1566,7 @@
   display: flex;
   flex-direction: column;
   gap: var(--sy-space-6);
-  animation: cardIn 0.4s var(--sy-ease) both;
+  animation: fadeUp 0.4s var(--sy-ease) both;
 }
 
 .counterLabel {
@@ -1645,7 +1642,7 @@
 
 .dailyBar {
   width: 100%;
-  background: linear-gradient(180deg, #8b7cf6, #6d5fd0);
+  background: linear-gradient(180deg, var(--sy-accent-gradient-from), var(--sy-accent-gradient-to));
   border-radius: var(--sy-radius-4) var(--sy-radius-4) 0 0;
   transform-origin: bottom;
   animation: growBarV 0.6s var(--sy-ease-spring) both;
@@ -1727,7 +1724,7 @@
 
 .sourceStatBar {
   height: 100%;
-  background: linear-gradient(90deg, #8b7cf6, #6d5fd0);
+  background: linear-gradient(90deg, var(--sy-accent-gradient-from), var(--sy-accent-gradient-to));
   border-radius: var(--sy-radius-4);
   transform-origin: left;
   animation: growBar 0.7s var(--sy-ease-spring) both;
@@ -1829,8 +1826,8 @@
   padding: 9px var(--sy-space-16);
   border-radius: var(--sy-radius-9);
   border: none;
-  background: linear-gradient(135deg, #8b7cf6, #6d5fd0);
-  color: var(--cream);
+  background: var(--sy-accent-gradient);
+  color: var(--sy-white);
   font-family: var(--font-display);
   font-weight: var(--sy-weight-semibold);
   font-size: var(--sy-size-13);
