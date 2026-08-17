@@ -56,6 +56,12 @@
      -------------------------------------------------------------------- */
   --sy-accent-wash: rgba(139, 124, 246, 0.15);
 
+  /* --- Dock de navigation flottant — section 1 de
+     synapse-structure-composants-v2.md. Valeurs données telles quelles par
+     le document, non dérivées d'un token existant. -------------------- */
+  --sy-dock-bg: rgba(14, 13, 20, 0.92);
+  --sy-dock-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(139, 124, 246, 0.08);
+
   /* --- Couleurs sémantiques — indépendantes du thème --------------------- */
   --sy-success: #3fb87f;
   --sy-alert: #d16b60;
@@ -235,6 +241,11 @@
   --sy-chip-bg: rgba(255, 255, 255, 0.4);
   --sy-chip-border: rgba(20, 20, 26, 0.06);
   --sy-accent-wash: rgba(109, 95, 208, 0.15);
+
+  /* Dock : fond clair, ombre allégée (0.14 au lieu de 0.5 en DARK) — la
+     structure v2 le précise explicitement pour ce composant. */
+  --sy-dock-bg: rgba(255, 255, 255, 0.92);
+  --sy-dock-shadow: 0 8px 32px rgba(0, 0, 0, 0.14), 0 0 0 1px rgba(139, 124, 246, 0.08);
 }
 
 /* ==========================================================================
@@ -275,18 +286,18 @@ a:hover {
 
 /* ==========================================================================
    Animations — noyau hérité de l'ancienne charte, conservé pour les
-   composants pas encore migrés (shimmer, spinSlow, spinFast, pulseCentered,
-   fadeSlideIn, growBar, growBarV, donutIn, breathe, shimmerSweep,
-   breatheStrong). arriveFlash porte déjà le nom de la charte v2 (section 8)
-   sans changement de définition.
+   composants pas encore migrés (shimmer, spinFast, fadeSlideIn, growBar,
+   growBarV, donutIn, breathe, shimmerSweep). arriveFlash porte déjà le nom
+   de la charte v2 (section 8) sans changement de définition.
 
-   La charte v2 en introduit huit au total (section 8). Trois ont un usage
-   réel dans dashboard.module.css et sont définies ci-dessous : nodePulse
-   (remplace pulseNode), glowPulse (remplace pulseNode sur les dots de
-   statut), dataSpark (remplace synapseSpark). Les cinq autres
-   (fadeUp, particleFloat, activeGlow, indicatorGlow) seront ajoutées avec
-   les composants qui les utilisent réellement, pour éviter du mort-code.
-   fadeUp est ajoutée dans ce même passage (topicCard/sourceRow/counterCard).
+   La charte v2 en introduit huit au total (section 8) : nodePulse, glowPulse,
+   fadeUp, dataSpark et indicatorGlow ont un usage réel et sont définies
+   ci-dessous. particleFloat et activeGlow restent sans cible dans le
+   dashboard actuel et seront ajoutées si un composant en a besoin, pour
+   éviter du mort-code.
+
+   dockIn est propre au dock de navigation (synapse-structure-composants-v2.md,
+   section 1) : ce n'est pas une des huit animations de la charte couleurs.
    ========================================================================== */
 
 @keyframes shimmer {
@@ -326,27 +337,9 @@ a:hover {
   to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
-@keyframes spinSlow {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(-360deg); }
-}
-
 @keyframes spinFast {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
-}
-
-/* Comme nodePulse, mais en conservant le translate(-50%, -50%) nécessaire
-   au centrage du label actif du cadran de fraîcheur sur son point. */
-@keyframes pulseCentered {
-  0%, 100% {
-    transform: translate(-50%, -50%) scale(1.05);
-    box-shadow: 0 0 0 0 rgba(139, 124, 246, 0.6);
-  }
-  50% {
-    transform: translate(-50%, -50%) scale(1.28);
-    box-shadow: 0 0 0 9px rgba(139, 124, 246, 0.22);
-  }
 }
 
 @keyframes fadeSlideIn {
@@ -393,16 +386,20 @@ a:hover {
   100% { opacity: 0; transform: scale(1.6); }
 }
 
-/* ==========================================================================
-   AJOUT conservé de l'ancienne charte. breathe est à une amplitude de
-   1.045, jugée trop discrète sur le sélecteur de vue. Cette variante ne
-   remplace pas breathe : elle s'y ajoute et n'est employée que par le
-   sélecteur.
-   ========================================================================== */
+/* Section 8 : "dock navigation actif" — glow doux, 2.6s. Portée sur le
+   bouton pilule actif du dock (structure v2, section 1), pas sur un dot. */
+@keyframes indicatorGlow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(139, 124, 246, 0.35); }
+  50% { box-shadow: 0 0 14px 2px rgba(139, 124, 246, 0.45); }
+}
 
-@keyframes breatheStrong {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.2); }
+/* Entrée du dock de navigation — synapse-structure-composants-v2.md,
+   section 1. translateX(-50%) reproduit ici (et pas seulement en dehors de
+   l'animation) car une position: fixed + left: 50% a besoin de ce recentrage
+   à chaque étape, pas seulement à l'état final. */
+@keyframes dockIn {
+  from { opacity: 0; transform: translateX(-50%) translateY(20px); }
+  to { opacity: 1; transform: translateX(-50%) translateY(0); }
 }
 
 /* ==========================================================================

@@ -7,7 +7,6 @@ import {
   useState,
   type MouseEvent,
 } from "react";
-import { ThumbsUp, ThumbsDown } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useAnimatedNumber } from "./use-animated-number";
 import AgeFilterDial from "./age-filter-dial";
@@ -366,7 +365,7 @@ export default function ArticleFeed({
                             isFavorited ? styles.thumbBtnActive : ""
                           }`}
                         >
-                          <ThumbsUp size={14} strokeWidth={2.25} />
+                          <span aria-hidden="true">✓</span>
                         </button>
                         <button
                           type="button"
@@ -375,7 +374,7 @@ export default function ArticleFeed({
                           aria-label="Retirer, ne m'intéresse pas"
                           className={`${styles.thumbBtn} ${styles.thumbBtnDismiss}`}
                         >
-                          <ThumbsDown size={14} strokeWidth={2.25} />
+                          <span aria-hidden="true">✕</span>
                         </button>
                       </div>
                     </div>

@@ -2,33 +2,33 @@
 
 import styles from "./dashboard.module.css";
 
-// Positions façon horloge : 24h à midi, puis 72h/7j/Tout dans le sens des
-// aiguilles, jusqu'à "Tout" à 9h — la durée s'allonge en tournant, comme le
-// temps qui s'écoule sur un vrai cadran. "angle" est en degrés SVG standard
-// (0° = droite, sens horaire, axe Y vers le bas).
-const DIAL_OPTIONS: {
-  label: string;
-  hours: number | null;
-  angle: number;
-  left: number;
-  top: number;
-}[] = [
-  { label: "24H", hours: 24, angle: -90, left: 50, top: 2 },
-  { label: "72H", hours: 72, angle: 0, left: 98, top: 50 },
-  { label: "7J", hours: 168, angle: 90, left: 50, top: 98 },
-  { label: "TOUT", hours: null, angle: 180, left: 2, top: 50 },
+// Structure reprise de synapse-structure-composants-v2.md, section 2 :
+// mini-jauge SVG décorative (icône, non cliquable) + 4 pilules horizontales.
+// Remplace l'ancien grand cadran circulaire en croix (24H/72H/7J/TOUT) —
+// la fenêtre "7 jours" disparaît au passage, remplacée par "48H" : c'est le
+// jeu d'options donné par la maquette (dialAngles), pas un oubli.
+
+const OPTIONS: { label: string; hours: number | null; angle: number }[] = [
+  { label: "24H", hours: 24, angle: -60 },
+  { label: "48H", hours: 48, angle: -20 },
+  { label: "72H", hours: 72, angle: 20 },
+  { label: "TOUT", hours: null, angle: 60 },
 ];
 
-const CENTER = 60;
-const NEEDLE_LEN = 34;
-const TICK_INNER = 42;
-const TICK_OUTER = 50;
+// Pivot de l'aiguille, en bas de la jauge (34×20, cf. maquette). La longueur
+// (12) reprend l'écart entre y1=18 et y2=6 du tracé de référence.
+const HUB = { x: 17, y: 18 };
+const NEEDLE_LEN = 12;
 
-function point(angleDeg: number, radius: number) {
+function needleTip(angleDeg: number) {
+  // Reproduit `transform: rotate({angle}deg)` avec `transform-origin: 50%
+  // 100%` (donc autour du pivot) sur une aiguille verticale par défaut :
+  // calculé ici en coordonnées SVG plutôt qu'en transform CSS pour éviter
+  // tout écart d'origine de rotation entre navigateurs.
   const rad = (angleDeg * Math.PI) / 180;
   return {
-    x: CENTER + Math.cos(rad) * radius,
-    y: CENTER + Math.sin(rad) * radius,
+    x: HUB.x + Math.sin(rad) * NEEDLE_LEN,
+    y: HUB.y - Math.cos(rad) * NEEDLE_LEN,
   };
 }
 
@@ -39,87 +39,58 @@ export default function AgeFilterDial({
   value: number | null;
   onChange: (hours: number | null) => void;
 }) {
-  const active =
-    DIAL_OPTIONS.find((o) => o.hours === value) ?? DIAL_OPTIONS[1];
-  const needleTip = point(active.angle, NEEDLE_LEN);
+  const active = OPTIONS.find((o) => o.hours === value) ?? OPTIONS[2];
+  const tip = needleTip(active.angle);
 
   return (
-    <div className={styles.ageDial}>
+    <div className={styles.ageFilter}>
       <svg
-        viewBox="0 0 120 120"
-        className={styles.ageDialSvg}
+        width="34"
+        height="20"
+        viewBox="0 0 34 20"
+        className={styles.ageGaugeSvg}
         aria-hidden="true"
       >
-        <defs>
-          <linearGradient
-            id="ageDialGrad"
-            gradientUnits="userSpaceOnUse"
-            x1="8"
-            y1="8"
-            x2="112"
-            y2="112"
-          >
-            <stop offset="0%" stopColor="var(--sy-accent-text)" />
-            <stop offset="100%" stopColor="var(--sy-accent-gradient-to)" />
-          </linearGradient>
-        </defs>
-
-        {/* Anneau pointillé ambiant, tourne en continu — écho du rond de menu */}
-        <circle
-          cx={CENTER}
-          cy={CENTER}
-          r="55"
-          className={styles.ageDialSpin}
+        <path
+          d="M 3 18 A 14 14 0 0 1 31 18"
           fill="none"
-          stroke="url(#ageDialGrad)"
+          className={styles.ageGaugeArc}
           strokeWidth="1.5"
-          strokeDasharray="3 9"
         />
-
-        <circle cx={CENTER} cy={CENTER} r="46" className={styles.ageDialFace} />
-
-        {DIAL_OPTIONS.map((o) => {
-          const inner = point(o.angle, TICK_INNER);
-          const outer = point(o.angle, TICK_OUTER);
-          const isActive = o.hours === active.hours;
-          return (
-            <line
-              key={o.label}
-              x1={inner.x}
-              y1={inner.y}
-              x2={outer.x}
-              y2={outer.y}
-              className={
-                isActive ? styles.ageDialTickActive : styles.ageDialTick
-              }
-            />
-          );
-        })}
-
         <line
-          x1={CENTER}
-          y1={CENTER}
-          x2={needleTip.x}
-          y2={needleTip.y}
-          className={styles.ageDialNeedle}
+          x1={HUB.x}
+          y1={HUB.y}
+          x2={tip.x}
+          y2={tip.y}
+          className={styles.ageGaugeNeedle}
+          strokeWidth="2"
+          strokeLinecap="round"
         />
-        <circle cx={CENTER} cy={CENTER} r="4" className={styles.ageDialHub} />
+        <circle cx={HUB.x} cy={HUB.y} r="2" className={styles.ageGaugeHub} />
       </svg>
 
-      {DIAL_OPTIONS.map((o) => (
-        <button
-          key={o.label}
-          type="button"
-          onClick={() => onChange(o.hours)}
-          aria-pressed={o.hours === active.hours}
-          className={`${styles.ageDialLabel} ${
-            o.hours === active.hours ? styles.ageDialLabelActive : ""
-          }`}
-          style={{ left: `${o.left}%`, top: `${o.top}%` }}
-        >
-          {o.label}
-        </button>
-      ))}
+      <div
+        className={styles.ageFilterPills}
+        role="group"
+        aria-label="Fenêtre de fraîcheur"
+      >
+        {OPTIONS.map((o) => {
+          const isActive = o.hours === active.hours;
+          return (
+            <button
+              key={o.label}
+              type="button"
+              onClick={() => onChange(o.hours)}
+              aria-pressed={isActive}
+              className={`${styles.ageFilterPill} ${
+                isActive ? styles.ageFilterPillActive : ""
+              }`}
+            >
+              {o.label}
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }
