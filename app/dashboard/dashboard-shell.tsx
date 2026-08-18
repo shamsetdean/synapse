@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, useState, type ReactNode } from "react";
+import Link from "next/link";
 import NavRing, { type DashboardPageKey } from "./nav-ring";
 import styles from "./dashboard.module.css";
 
@@ -66,6 +67,10 @@ export default function DashboardShell({
       <footer className={styles.footer}>
         <span>SYNAPSE — SYSTÈME DE VEILLE INTELLIGENTE</span>
         <span>Collecte périodique toutes les 20 min</span>
+        <div className={styles.footerLinks}>
+          <Link href="/mentions-legales">Mentions légales</Link>
+          <Link href="/confidentialite">Confidentialité</Link>
+        </div>
       </footer>
     </NavContext.Provider>
   );

@@ -79,7 +79,13 @@
   background: var(--sy-header-bg);
   backdrop-filter: blur(var(--sy-glass-blur));
   -webkit-backdrop-filter: blur(var(--sy-glass-blur));
-  z-index: 40;
+  /* position: sticky + z-index font de .topbar son propre contexte
+     d'empilement : le z-index local de .profileMenuPanel (60) n'est comparé
+     qu'aux autres éléments DANS ce contexte, jamais directement à ceux du
+     reste de la page. Pour que le panneau gagne contre .navDock (fixed,
+     z-index 50) ou tout autre contenu de page, c'est ce z-index-ci, celui du
+     contexte englobant, qui doit dépasser 50 — pas celui du panneau. */
+  z-index: 55;
   box-sizing: border-box;
 }
 
@@ -1316,6 +1322,20 @@
   justify-content: space-between;
   flex-wrap: wrap;
   gap: var(--sy-space-8);
+}
+
+.footerLinks {
+  display: flex;
+  gap: var(--sy-space-16);
+}
+
+.footerLinks a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.footerLinks a:hover {
+  color: var(--violet-deep);
 }
 
 /* ==========================================================================

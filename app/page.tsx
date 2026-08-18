@@ -48,8 +48,11 @@ export default async function HomePage() {
         <Steps />
 
         <footer>
-          <span>Synapse — Anthropotech Lab</span>
-          <span>Tous droits réservés</span>
+          <span>Synapse — Anthropotech Lab · Tous droits réservés</span>
+          <div className={styles.footerLinks}>
+            <Link href="/mentions-legales">Mentions légales</Link>
+            <Link href="/confidentialite">Confidentialité</Link>
+          </div>
         </footer>
       </div>
     </div>
