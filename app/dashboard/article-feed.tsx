@@ -53,15 +53,19 @@ function ageLabel(hours: number): string {
   return `${Math.floor(hours / 24)} j ${Math.round(hours % 24)} h`;
 }
 
-// Regroupe les articles par sujet de veille en conservant l'ordre de
-// première apparition (donc, du sujet le plus récemment alimenté) et l'ordre
-// décroissant de date déjà appliqué par la requête serveur à l'intérieur de
-// chaque groupe. "Sans sujet" est toujours relégué en fin de liste, même si
-// l'article sans sujet le plus récent est le tout premier du flux — sinon un
-// article mal étiqueté prendrait la première place.
+// Regroupe les articles par sujet de veille, dans l'ordre défini par
+// l'utilisateur dans l'onglet Sujets de veille (topics.sort_order, hérité
+// via topicOrder — liste des noms déjà triée par l'appelant). Un sujet dont
+// le nom n'apparaît pas dans topicOrder (cas limite : sujet supprimé entre
+// la lecture des deux requêtes serveur) atterrit après les sujets connus
+// mais avant "Sans sujet", qui reste toujours relégué en fin de liste même
+// si l'article correspondant le plus récent est le tout premier du flux —
+// sinon un article mal étiqueté prendrait la première place. Le tri étant
+// stable, l'ordre décroissant de date déjà appliqué par la requête serveur
+// est conservé à l'intérieur de chaque groupe.
 // Chaque article reçoit un index global (et non un index local au groupe)
 // afin que la cadence de l'animation d'entrée reste la même qu'auparavant.
-function groupByTopic(articles: FeedArticle[]) {
+function groupByTopic(articles: FeedArticle[], topicOrder: string[]) {
   const order: string[] = [];
   const buckets = new Map<string, FeedArticle[]>();
   for (const article of articles) {
@@ -72,10 +76,13 @@ function groupByTopic(articles: FeedArticle[]) {
     }
     buckets.get(key)!.push(article);
   }
+  const rank = new Map(topicOrder.map((name, i) => [name, i]));
   order.sort((a, b) => {
     if (a === "Sans sujet") return 1;
     if (b === "Sans sujet") return -1;
-    return 0;
+    const ra = rank.get(a) ?? Number.MAX_SAFE_INTEGER;
+    const rb = rank.get(b) ?? Number.MAX_SAFE_INTEGER;
+    return ra - rb;
   });
   let globalIndex = 0;
   return order.map((name) => ({
@@ -101,9 +108,11 @@ function handleCardClick(event: MouseEvent<HTMLDivElement>, url: string) {
 export default function ArticleFeed({
   articles,
   favoritedIds,
+  topicOrder,
 }: {
   articles: FeedArticle[];
   favoritedIds: string[];
+  topicOrder: string[];
 }) {
   const supabase = useMemo(() => createClient(), []);
 
@@ -213,7 +222,7 @@ export default function ArticleFeed({
     [remainingArticles, maxAgeHours],
   );
 
-  const groups = groupByTopic(visibleArticles);
+  const groups = groupByTopic(visibleArticles, topicOrder);
   const animatedCount = useAnimatedNumber(visibleArticles.length, 450);
 
   // Animation d'entrée pilotée par le scroll : IntersectionObserver plutôt

@@ -118,6 +118,12 @@ export default async function DashboardPage() {
     (dismissedRows ?? []).map((r) => r.article_id as string),
   );
 
+  // Ordre des groupes de sujets dans le fil d'articles : hérité de
+  // topics.sort_order, déjà appliqué par la requête ci-dessus (.order sur
+  // sort_order). Pas de nouvel état, pas de nouvelle interface — le
+  // glisser-déposer de l'onglet Sujets de veille suffit.
+  const topicOrder = (topics ?? []).map((t) => t.name);
+
   // Server Component : rendu une fois par requête, jamais réexécuté côté client.
   // L'âge est calculé ici précisément pour éviter la divergence d'hydratation
   // que produisait le même appel dans article-feed.tsx.
@@ -184,7 +190,11 @@ export default async function DashboardPage() {
       {articles.length === 0 ? (
         <ArticlesEmptyState />
       ) : (
-        <ArticleFeed articles={articles} favoritedIds={favoritedIds} />
+        <ArticleFeed
+          articles={articles}
+          favoritedIds={favoritedIds}
+          topicOrder={topicOrder}
+        />
       )}
     </div>
   );
