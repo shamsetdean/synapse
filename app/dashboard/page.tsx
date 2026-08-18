@@ -87,7 +87,7 @@ export default async function DashboardPage() {
   const { data: articleTopics } = await supabase
     .from("article_topics")
     .select(
-      "articles(id, title, canonical_url, published_at, sources(name)), topics(name)",
+      "articles(id, title, canonical_url, published_at, content_snippet, sources(name)), topics(name)",
     )
     .order("published_at", { foreignTable: "articles", ascending: false })
     .limit(150);
@@ -137,6 +137,7 @@ export default async function DashboardPage() {
         title: string;
         canonical_url: string;
         published_at: string;
+        content_snippet: string | null;
         sources: { name: string } | null;
       } | null;
       const topic = row.topics as unknown as { name: string } | null;
@@ -148,6 +149,7 @@ export default async function DashboardPage() {
         sourceName: article.sources?.name ?? "Source inconnue",
         publishedAt: article.published_at,
         topicName: topic?.name ?? "",
+        summary: article.content_snippet ?? "",
         ageHours: (nowMs - new Date(article.published_at).getTime()) / 3600000,
       };
     })
@@ -196,6 +198,7 @@ export default async function DashboardPage() {
           topicOrder={topicOrder}
           sortBy={preferences.sortBy}
           density={preferences.density}
+          visibleFields={preferences.visibleFields}
         />
       )}
     </div>

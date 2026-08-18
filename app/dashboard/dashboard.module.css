@@ -877,6 +877,24 @@
   color: var(--violet-deep);
 }
 
+/* Champ optionnel (préférence visibleFields.summary) : tronqué à 3 lignes
+   pour ne pas déséquilibrer la hauteur des cards les unes par rapport aux
+   autres selon la longueur du résumé de la source d'origine. */
+.articleSummary {
+  margin: 0;
+  font-size: var(--sy-size-12-5);
+  line-height: var(--sy-leading-normal);
+  color: var(--ink-mid);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.densityCompact .articleSummary {
+  -webkit-line-clamp: 2;
+}
+
 .gaugeRow {
   display: flex;
   align-items: center;

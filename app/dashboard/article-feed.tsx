@@ -19,12 +19,15 @@ type FeedArticle = {
   sourceName: string;
   publishedAt: string;
   topicName: string;
+  summary: string;
   // Âge en heures, calculé côté serveur dans app/dashboard/page.tsx.
   // Le calculer ici avec Date.now() rendait le composant impur : le rendu
   // serveur et l'hydratation produisaient deux valeurs différentes, donc une
   // couleur de fraîcheur et un libellé d'âge potentiellement divergents.
   ageHours: number;
 };
+
+type VisibleFields = { source: boolean; freshness: boolean; summary: boolean };
 
 // Interpolation de couleur de la charte, entre l'extrémité froide et
 // l'accent, sur une fenêtre de soixante-douze heures.
@@ -174,12 +177,14 @@ export default function ArticleFeed({
   topicOrder,
   sortBy,
   density,
+  visibleFields,
 }: {
   articles: FeedArticle[];
   favoritedIds: string[];
   topicOrder: string[];
   sortBy: SortBy;
   density: Density;
+  visibleFields: VisibleFields;
 }) {
   const supabase = useMemo(() => createClient(), []);
 
@@ -400,15 +405,17 @@ export default function ArticleFeed({
                       }`}
                       style={{ transitionDelay: `${(index % 6) * 0.05}s` }}
                     >
-                      <div className={styles.articleSource}>
-                        {article.sourceName}
-                        {sortBy !== "topic" && (
-                          <span className={styles.articleTopicTag}>
-                            {" "}
-                            · {article.topicName || "Sans sujet"}
-                          </span>
-                        )}
-                      </div>
+                      {visibleFields.source && (
+                        <div className={styles.articleSource}>
+                          {article.sourceName}
+                          {sortBy !== "topic" && (
+                            <span className={styles.articleTopicTag}>
+                              {" "}
+                              · {article.topicName || "Sans sujet"}
+                            </span>
+                          )}
+                        </div>
+                      )}
                       <a
                         href={article.url}
                         target="_blank"
@@ -418,25 +425,35 @@ export default function ArticleFeed({
                         {article.title}
                       </a>
 
-                      <div className={styles.gaugeRow}>
-                        <div className={styles.gaugeLabel}>FRAÎCHEUR</div>
-                        <div className={styles.gaugeTrack}>
-                          <div
-                            className={styles.gaugeFill}
-                            style={{
-                              width: `${(fresh * 100).toFixed(0)}%`,
-                              background: color,
-                            }}
-                          />
-                        </div>
-                      </div>
+                      {visibleFields.summary && article.summary && (
+                        <p className={styles.articleSummary}>
+                          {article.summary}
+                        </p>
+                      )}
 
-                      <div className={styles.articleAgeRow}>
-                        <span className={styles.articleAge} style={{ color }}>
-                          {ageLabel(article.ageHours)}
-                          {archived ? " (archivé)" : ""}
-                        </span>
-                      </div>
+                      {visibleFields.freshness && (
+                        <>
+                          <div className={styles.gaugeRow}>
+                            <div className={styles.gaugeLabel}>FRAÎCHEUR</div>
+                            <div className={styles.gaugeTrack}>
+                              <div
+                                className={styles.gaugeFill}
+                                style={{
+                                  width: `${(fresh * 100).toFixed(0)}%`,
+                                  background: color,
+                                }}
+                              />
+                            </div>
+                          </div>
+
+                          <div className={styles.articleAgeRow}>
+                            <span className={styles.articleAge} style={{ color }}>
+                              {ageLabel(article.ageHours)}
+                              {archived ? " (archivé)" : ""}
+                            </span>
+                          </div>
+                        </>
+                      )}
 
                       <div className={styles.articleActions}>
                         <button
