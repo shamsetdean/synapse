@@ -10,6 +10,12 @@ import styles from "./dashboard.module.css";
 // SignOutButton + email côte à côte) par un seul bouton icône ouvrant ce
 // menu déroulant.
 //
+// SignOutButton ferme le menu via sa prop onSignOut, appelée en tout premier
+// dans signOut() — pas via onClickCapture sur un conteneur : cette première
+// version fermait le menu au clic mais empêchait le clic d'atteindre le
+// gestionnaire de SignOutButton lui-même, donc la déconnexion elle-même ne
+// se déclenchait jamais.
+//
 // La logique de bascule de thème est réimplémentée ici via useTheme()
 // plutôt que de réutiliser <ThemeToggle /> tel quel : ce composant est
 // stylé comme une pilule autonome de topbar (bordure, opacity 0.7), pas
@@ -77,14 +83,8 @@ export default function ProfileMenu({ email }: { email: string }) {
 
           <div className={styles.profileMenuEmail}>{email}</div>
 
-          {/* onClickCapture ferme le menu quel que soit le déroulement (async)
-              du signOut interne à SignOutButton, sans avoir à lui ajouter de
-              prop pour cet aperçu. */}
-          <div
-            className={styles.profileMenuSignOut}
-            onClickCapture={() => setOpen(false)}
-          >
-            <SignOutButton />
+          <div className={styles.profileMenuSignOut}>
+            <SignOutButton onSignOut={() => setOpen(false)} />
           </div>
         </div>
       )}
