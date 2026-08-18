@@ -166,16 +166,20 @@ function handleCardClick(event: MouseEvent<HTMLDivElement>, url: string) {
   window.open(url, "_blank", "noopener,noreferrer");
 }
 
+type Density = "compact" | "comfortable";
+
 export default function ArticleFeed({
   articles,
   favoritedIds,
   topicOrder,
   sortBy,
+  density,
 }: {
   articles: FeedArticle[];
   favoritedIds: string[];
   topicOrder: string[];
   sortBy: SortBy;
+  density: Density;
 }) {
   const supabase = useMemo(() => createClient(), []);
 
@@ -328,7 +332,11 @@ export default function ArticleFeed({
   }, [visibleArticles]);
 
   return (
-    <div className={styles.articleFeedRoot}>
+    <div
+      className={`${styles.articleFeedRoot} ${
+        density === "compact" ? styles.densityCompact : ""
+      }`}
+    >
       <div className={styles.articleFilterBar}>
         <span className={styles.sectionCount}>
           {animatedCount} correspondance

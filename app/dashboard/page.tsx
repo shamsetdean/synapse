@@ -195,6 +195,7 @@ export default async function DashboardPage() {
           favoritedIds={favoritedIds}
           topicOrder={topicOrder}
           sortBy={preferences.sortBy}
+          density={preferences.density}
         />
       )}
     </div>

@@ -664,6 +664,36 @@
   gap: var(--sy-space-12);
 }
 
+/* Densité "compact" — préférence utilisateur (user_preferences.density).
+   Un seul modificateur posé sur .articleFeedRoot ; tout ce qui suit est en
+   sélecteur descendant plutôt que d'ajouter une classe sur chaque élément
+   imbriqué côté JSX. Resserre les espacements de la card et permet plus de
+   colonnes (300px -> 240px de large minimale) plutôt que de ne toucher que
+   le remplissage interne. */
+.densityCompact .articleGrid {
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: var(--sy-space-8);
+}
+
+.densityCompact .articleCard {
+  gap: var(--sy-space-6);
+  padding: var(--sy-space-10) var(--sy-space-12);
+  border-radius: var(--sy-radius-10);
+}
+
+.densityCompact .gaugeRow {
+  gap: var(--sy-space-6);
+}
+
+.densityCompact .articleActions {
+  padding-top: var(--sy-space-6);
+  gap: var(--sy-space-6);
+}
+
+.densityCompact .thumbBtn {
+  padding: var(--sy-space-4) 0;
+}
+
 /* Regroupement des cartes par sujet de veille */
 .articleFeedRoot {
   display: flex;
