@@ -664,6 +664,36 @@
   gap: var(--sy-space-12);
 }
 
+/* Densité "compact" — préférence utilisateur (user_preferences.density).
+   Un seul modificateur posé sur .articleFeedRoot ; tout ce qui suit est en
+   sélecteur descendant plutôt que d'ajouter une classe sur chaque élément
+   imbriqué côté JSX. Resserre les espacements de la card et permet plus de
+   colonnes (300px -> 240px de large minimale) plutôt que de ne toucher que
+   le remplissage interne. */
+.densityCompact .articleGrid {
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: var(--sy-space-8);
+}
+
+.densityCompact .articleCard {
+  gap: var(--sy-space-6);
+  padding: var(--sy-space-10) var(--sy-space-12);
+  border-radius: var(--sy-radius-10);
+}
+
+.densityCompact .gaugeRow {
+  gap: var(--sy-space-6);
+}
+
+.densityCompact .articleActions {
+  padding-top: var(--sy-space-6);
+  gap: var(--sy-space-6);
+}
+
+.densityCompact .thumbBtn {
+  padding: var(--sy-space-4) 0;
+}
+
 /* Regroupement des cartes par sujet de veille */
 .articleFeedRoot {
   display: flex;
@@ -826,6 +856,15 @@
   letter-spacing: var(--sy-tracking-wide);
 }
 
+/* Visible uniquement hors mode "sujet" (tri par date ou par source) : sans
+   en-tête de groupe pour le porter, l'appartenance à un sujet doit rester
+   lisible sur la card elle-même. Même teinte que .topicGroupName, pour que
+   ce soit reconnaissable comme une information de sujet où qu'elle
+   apparaisse. */
+.articleTopicTag {
+  color: var(--violet);
+}
+
 .articleTitle {
   font-weight: var(--sy-weight-semibold);
   font-size: var(--sy-size-14-5);
@@ -836,6 +875,24 @@
 
 .articleTitle:hover {
   color: var(--violet-deep);
+}
+
+/* Champ optionnel (préférence visibleFields.summary) : tronqué à 3 lignes
+   pour ne pas déséquilibrer la hauteur des cards les unes par rapport aux
+   autres selon la longueur du résumé de la source d'origine. */
+.articleSummary {
+  margin: 0;
+  font-size: var(--sy-size-12-5);
+  line-height: var(--sy-leading-normal);
+  color: var(--ink-mid);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.densityCompact .articleSummary {
+  -webkit-line-clamp: 2;
 }
 
 .gaugeRow {
@@ -1453,6 +1510,49 @@
 .createBtnDisabled {
   background: var(--line);
   cursor: not-allowed;
+}
+
+/* --- Préférences d'affichage (user_preferences) -------------------------- */
+
+.prefPills {
+  display: flex;
+  gap: var(--sy-space-2);
+  background: var(--track);
+  border-radius: var(--sy-radius-10);
+  padding: var(--sy-space-3);
+  width: fit-content;
+  flex-wrap: wrap;
+}
+
+.prefPill {
+  padding: var(--sy-space-8) var(--sy-space-14);
+  border-radius: var(--sy-radius-8);
+  border: none;
+  font-family: var(--font-display);
+  font-weight: var(--sy-weight-medium);
+  font-size: var(--sy-size-13);
+  cursor: pointer;
+  transition: all var(--sy-duration-base) var(--sy-ease);
+  background: transparent;
+  color: var(--ink-mid);
+}
+
+.prefPillActive {
+  background: var(--sy-accent-gradient);
+  color: var(--sy-white);
+}
+
+.prefFooter {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--sy-space-12);
+  margin-top: var(--sy-space-6);
+}
+
+.prefError {
+  font-size: 13px;
+  color: var(--danger);
 }
 
 /* --- Suivi d'analyse --------------------------------------------------- */

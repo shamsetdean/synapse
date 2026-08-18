@@ -19,12 +19,15 @@ type FeedArticle = {
   sourceName: string;
   publishedAt: string;
   topicName: string;
+  summary: string;
   // Âge en heures, calculé côté serveur dans app/dashboard/page.tsx.
   // Le calculer ici avec Date.now() rendait le composant impur : le rendu
   // serveur et l'hydratation produisaient deux valeurs différentes, donc une
   // couleur de fraîcheur et un libellé d'âge potentiellement divergents.
   ageHours: number;
 };
+
+type VisibleFields = { source: boolean; freshness: boolean; summary: boolean };
 
 // Interpolation de couleur de la charte, entre l'extrémité froide et
 // l'accent, sur une fenêtre de soixante-douze heures.
@@ -53,15 +56,29 @@ function ageLabel(hours: number): string {
   return `${Math.floor(hours / 24)} j ${Math.round(hours % 24)} h`;
 }
 
-// Regroupe les articles par sujet de veille en conservant l'ordre de
-// première apparition (donc, du sujet le plus récemment alimenté) et l'ordre
-// décroissant de date déjà appliqué par la requête serveur à l'intérieur de
-// chaque groupe. "Sans sujet" est toujours relégué en fin de liste, même si
-// l'article sans sujet le plus récent est le tout premier du flux — sinon un
-// article mal étiqueté prendrait la première place.
+type SortBy = "date" | "source" | "topic";
+
+// Forme commune aux trois modes, pour que le rendu n'ait besoin que d'un
+// seul chemin : un "groupe" sans nom (name: null) est rendu sans en-tête,
+// ce que seul le mode "date" (liste plate) produit.
+type ArticleGroup = {
+  name: string | null;
+  items: { article: FeedArticle; index: number }[];
+};
+
+// Regroupe les articles par sujet de veille, dans l'ordre défini par
+// l'utilisateur dans l'onglet Sujets de veille (topics.sort_order, hérité
+// via topicOrder — liste des noms déjà triée par l'appelant). Un sujet dont
+// le nom n'apparaît pas dans topicOrder (cas limite : sujet supprimé entre
+// la lecture des deux requêtes serveur) atterrit après les sujets connus
+// mais avant "Sans sujet", qui reste toujours relégué en fin de liste même
+// si l'article correspondant le plus récent est le tout premier du flux —
+// sinon un article mal étiqueté prendrait la première place. Le tri étant
+// stable, l'ordre décroissant de date déjà appliqué par la requête serveur
+// est conservé à l'intérieur de chaque groupe.
 // Chaque article reçoit un index global (et non un index local au groupe)
 // afin que la cadence de l'animation d'entrée reste la même qu'auparavant.
-function groupByTopic(articles: FeedArticle[]) {
+function groupByTopic(articles: FeedArticle[], topicOrder: string[]): ArticleGroup[] {
   const order: string[] = [];
   const buckets = new Map<string, FeedArticle[]>();
   for (const article of articles) {
@@ -72,10 +89,13 @@ function groupByTopic(articles: FeedArticle[]) {
     }
     buckets.get(key)!.push(article);
   }
+  const rank = new Map(topicOrder.map((name, i) => [name, i]));
   order.sort((a, b) => {
     if (a === "Sans sujet") return 1;
     if (b === "Sans sujet") return -1;
-    return 0;
+    const ra = rank.get(a) ?? Number.MAX_SAFE_INTEGER;
+    const rb = rank.get(b) ?? Number.MAX_SAFE_INTEGER;
+    return ra - rb;
   });
   let globalIndex = 0;
   return order.map((name) => ({
@@ -85,6 +105,57 @@ function groupByTopic(articles: FeedArticle[]) {
       index: globalIndex++,
     })),
   }));
+}
+
+// Liste plate, sans regroupement : les articles arrivent déjà triés par
+// date décroissante depuis la requête serveur (voir dashboard/page.tsx), et
+// le filtrage par fenêtre de fraîcheur en amont préserve cet ordre — rien à
+// trier ici, juste les envelopper dans un groupe unique sans nom pour
+// réutiliser le même rendu que les deux autres modes.
+function sortByDateFlat(articles: FeedArticle[]): ArticleGroup[] {
+  return [
+    { name: null, items: articles.map((article, index) => ({ article, index })) },
+  ];
+}
+
+// Regroupe par nom de source, ordre alphabétique. Comme pour groupByTopic,
+// le tri étant stable et les articles déjà reçus en ordre décroissant de
+// date, chaque groupe conserve cet ordre en interne sans repasse explicite.
+function groupBySource(articles: FeedArticle[]): ArticleGroup[] {
+  const order: string[] = [];
+  const buckets = new Map<string, FeedArticle[]>();
+  for (const article of articles) {
+    const key = article.sourceName || "Source inconnue";
+    if (!buckets.has(key)) {
+      buckets.set(key, []);
+      order.push(key);
+    }
+    buckets.get(key)!.push(article);
+  }
+  order.sort((a, b) => a.localeCompare(b, "fr"));
+  let globalIndex = 0;
+  return order.map((name) => ({
+    name,
+    items: buckets.get(name)!.map((article) => ({
+      article,
+      index: globalIndex++,
+    })),
+  }));
+}
+
+function buildGroups(
+  articles: FeedArticle[],
+  sortBy: SortBy,
+  topicOrder: string[],
+): ArticleGroup[] {
+  switch (sortBy) {
+    case "date":
+      return sortByDateFlat(articles);
+    case "source":
+      return groupBySource(articles);
+    case "topic":
+      return groupByTopic(articles, topicOrder);
+  }
 }
 
 // Fenêtre de fraîcheur pilotée par le cadran AgeFilterDial ci-dessous.
@@ -98,12 +169,22 @@ function handleCardClick(event: MouseEvent<HTMLDivElement>, url: string) {
   window.open(url, "_blank", "noopener,noreferrer");
 }
 
+type Density = "compact" | "comfortable";
+
 export default function ArticleFeed({
   articles,
   favoritedIds,
+  topicOrder,
+  sortBy,
+  density,
+  visibleFields,
 }: {
   articles: FeedArticle[];
   favoritedIds: string[];
+  topicOrder: string[];
+  sortBy: SortBy;
+  density: Density;
+  visibleFields: VisibleFields;
 }) {
   const supabase = useMemo(() => createClient(), []);
 
@@ -213,7 +294,7 @@ export default function ArticleFeed({
     [remainingArticles, maxAgeHours],
   );
 
-  const groups = groupByTopic(visibleArticles);
+  const groups = buildGroups(visibleArticles, sortBy, topicOrder);
   const animatedCount = useAnimatedNumber(visibleArticles.length, 450);
 
   // Animation d'entrée pilotée par le scroll : IntersectionObserver plutôt
@@ -256,7 +337,11 @@ export default function ArticleFeed({
   }, [visibleArticles]);
 
   return (
-    <div className={styles.articleFeedRoot}>
+    <div
+      className={`${styles.articleFeedRoot} ${
+        density === "compact" ? styles.densityCompact : ""
+      }`}
+    >
       <div className={styles.articleFilterBar}>
         <span className={styles.sectionCount}>
           {animatedCount} correspondance
@@ -279,14 +364,16 @@ export default function ArticleFeed({
       ) : (
         <div className={styles.topicGroups}>
           {groups.map((group) => (
-            <section key={group.name} className={styles.topicGroup}>
-              <div className={styles.topicGroupHead}>
-                <h3 className={styles.topicGroupName}>{group.name}</h3>
-                <span className={styles.topicGroupCount}>
-                  {group.items.length} article
-                  {group.items.length > 1 ? "s" : ""}
-                </span>
-              </div>
+            <section key={group.name ?? "flat"} className={styles.topicGroup}>
+              {group.name && (
+                <div className={styles.topicGroupHead}>
+                  <h3 className={styles.topicGroupName}>{group.name}</h3>
+                  <span className={styles.topicGroupCount}>
+                    {group.items.length} article
+                    {group.items.length > 1 ? "s" : ""}
+                  </span>
+                </div>
+              )}
 
               <div className={styles.articleGrid}>
                 {group.items.map(({ article, index }) => {
@@ -318,9 +405,17 @@ export default function ArticleFeed({
                       }`}
                       style={{ transitionDelay: `${(index % 6) * 0.05}s` }}
                     >
-                      <div className={styles.articleSource}>
-                        {article.sourceName}
-                      </div>
+                      {visibleFields.source && (
+                        <div className={styles.articleSource}>
+                          {article.sourceName}
+                          {sortBy !== "topic" && (
+                            <span className={styles.articleTopicTag}>
+                              {" "}
+                              · {article.topicName || "Sans sujet"}
+                            </span>
+                          )}
+                        </div>
+                      )}
                       <a
                         href={article.url}
                         target="_blank"
@@ -330,25 +425,35 @@ export default function ArticleFeed({
                         {article.title}
                       </a>
 
-                      <div className={styles.gaugeRow}>
-                        <div className={styles.gaugeLabel}>FRAÎCHEUR</div>
-                        <div className={styles.gaugeTrack}>
-                          <div
-                            className={styles.gaugeFill}
-                            style={{
-                              width: `${(fresh * 100).toFixed(0)}%`,
-                              background: color,
-                            }}
-                          />
-                        </div>
-                      </div>
+                      {visibleFields.summary && article.summary && (
+                        <p className={styles.articleSummary}>
+                          {article.summary}
+                        </p>
+                      )}
 
-                      <div className={styles.articleAgeRow}>
-                        <span className={styles.articleAge} style={{ color }}>
-                          {ageLabel(article.ageHours)}
-                          {archived ? " (archivé)" : ""}
-                        </span>
-                      </div>
+                      {visibleFields.freshness && (
+                        <>
+                          <div className={styles.gaugeRow}>
+                            <div className={styles.gaugeLabel}>FRAÎCHEUR</div>
+                            <div className={styles.gaugeTrack}>
+                              <div
+                                className={styles.gaugeFill}
+                                style={{
+                                  width: `${(fresh * 100).toFixed(0)}%`,
+                                  background: color,
+                                }}
+                              />
+                            </div>
+                          </div>
+
+                          <div className={styles.articleAgeRow}>
+                            <span className={styles.articleAge} style={{ color }}>
+                              {ageLabel(article.ageHours)}
+                              {archived ? " (archivé)" : ""}
+                            </span>
+                          </div>
+                        </>
+                      )}
 
                       <div className={styles.articleActions}>
                         <button

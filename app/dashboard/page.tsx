@@ -10,7 +10,66 @@ import StatsPanel from "./stats-panel";
 import UserSourcesPanel from "./user-sources-panel";
 import DashboardShell from "./dashboard-shell";
 import ConfigView from "./config-view";
+import PreferencesPanel from "./preferences-panel";
 import styles from "./dashboard.module.css";
+
+type SortBy = "date" | "source" | "topic";
+type Density = "compact" | "comfortable";
+type VisibleFields = { source: boolean; freshness: boolean; summary: boolean };
+type UserPreferences = {
+  sortBy: SortBy;
+  density: Density;
+  visibleFields: VisibleFields;
+};
+
+// Valeurs par défaut : utilisées tant qu'aucune ligne user_preferences
+// n'existe encore pour cet utilisateur (avant son premier réglage), et pour
+// compléter tout champ manquant ou invalide dans une ligne existante.
+const DEFAULT_PREFERENCES: UserPreferences = {
+  sortBy: "date",
+  density: "comfortable",
+  visibleFields: { source: true, freshness: true, summary: true },
+};
+
+function isSortBy(value: unknown): value is SortBy {
+  return value === "date" || value === "source" || value === "topic";
+}
+
+function isDensity(value: unknown): value is Density {
+  return value === "compact" || value === "comfortable";
+}
+
+// visible_fields est une colonne jsonb : sa forme n'est garantie ni par les
+// types ni par une contrainte en base, contrairement à sort_by/density (déjà
+// verrouillées par un CHECK). Même logique défensive que normalizeBlocks
+// pour site_layout.blocks — filtrer/compléter plutôt que faire confiance.
+function normalizeVisibleFields(raw: unknown): VisibleFields {
+  const source = raw as Record<string, unknown> | null | undefined;
+  return {
+    source:
+      typeof source?.source === "boolean"
+        ? source.source
+        : DEFAULT_PREFERENCES.visibleFields.source,
+    freshness:
+      typeof source?.freshness === "boolean"
+        ? source.freshness
+        : DEFAULT_PREFERENCES.visibleFields.freshness,
+    summary:
+      typeof source?.summary === "boolean"
+        ? source.summary
+        : DEFAULT_PREFERENCES.visibleFields.summary,
+  };
+}
+
+function normalizePreferences(
+  raw: { sort_by?: unknown; density?: unknown; visible_fields?: unknown } | null | undefined,
+): UserPreferences {
+  return {
+    sortBy: isSortBy(raw?.sort_by) ? raw.sort_by : DEFAULT_PREFERENCES.sortBy,
+    density: isDensity(raw?.density) ? raw.density : DEFAULT_PREFERENCES.density,
+    visibleFields: normalizeVisibleFields(raw?.visible_fields),
+  };
+}
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -29,7 +88,7 @@ export default async function DashboardPage() {
   const { data: articleTopics } = await supabase
     .from("article_topics")
     .select(
-      "articles(id, title, canonical_url, published_at, sources(name)), topics(name)",
+      "articles(id, title, canonical_url, published_at, content_snippet, sources(name)), topics(name)",
     )
     .order("published_at", { foreignTable: "articles", ascending: false })
     .limit(150);
@@ -47,10 +106,24 @@ export default async function DashboardPage() {
     .from("dismissed_articles")
     .select("article_id");
 
+  const { data: preferencesRow } = await supabase
+    .from("user_preferences")
+    .select("sort_by, density, visible_fields")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  const preferences = normalizePreferences(preferencesRow);
+
   const favoritedIds = (favoriteRows ?? []).map((r) => r.article_id as string);
   const dismissedIds = new Set(
     (dismissedRows ?? []).map((r) => r.article_id as string),
   );
+
+  // Ordre des groupes de sujets dans le fil d'articles : hérité de
+  // topics.sort_order, déjà appliqué par la requête ci-dessus (.order sur
+  // sort_order). Pas de nouvel état, pas de nouvelle interface — le
+  // glisser-déposer de l'onglet Sujets de veille suffit.
+  const topicOrder = (topics ?? []).map((t) => t.name);
 
   // Server Component : rendu une fois par requête, jamais réexécuté côté client.
   // L'âge est calculé ici précisément pour éviter la divergence d'hydratation
@@ -65,6 +138,7 @@ export default async function DashboardPage() {
         title: string;
         canonical_url: string;
         published_at: string;
+        content_snippet: string | null;
         sources: { name: string } | null;
       } | null;
       const topic = row.topics as unknown as { name: string } | null;
@@ -76,6 +150,7 @@ export default async function DashboardPage() {
         sourceName: article.sources?.name ?? "Source inconnue",
         publishedAt: article.published_at,
         topicName: topic?.name ?? "",
+        summary: article.content_snippet ?? "",
         ageHours: (nowMs - new Date(article.published_at).getTime()) / 3600000,
       };
     })
@@ -118,7 +193,14 @@ export default async function DashboardPage() {
       {articles.length === 0 ? (
         <ArticlesEmptyState />
       ) : (
-        <ArticleFeed articles={articles} favoritedIds={favoritedIds} />
+        <ArticleFeed
+          articles={articles}
+          favoritedIds={favoritedIds}
+          topicOrder={topicOrder}
+          sortBy={preferences.sortBy}
+          density={preferences.density}
+          visibleFields={preferences.visibleFields}
+        />
       )}
     </div>
   );
@@ -144,6 +226,7 @@ export default async function DashboardPage() {
       <ConfigView
         stats={<StatsPanel userId={user.id} />}
         sources={<UserSourcesPanel initialSources={userSources ?? []} />}
+        display={<PreferencesPanel initialPreferences={preferences} />}
       />
     </div>
   );

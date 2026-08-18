@@ -38,15 +38,14 @@ export default function ConfidentialitePage() {
           </Link>
 
           <h1>Politique de confidentialité</h1>
-          <p className={styles.legalUpdated}>Dernière mise à jour : 17 août 2026</p>
+          <p className={styles.legalUpdated}>Dernière mise à jour : 18 août 2026</p>
 
           <div className={styles.legalNotice}>
             <strong>Brouillon en attente de relecture juridique.</strong> Le contenu
             reflète fidèlement ce que le code du projet fait réellement aujourd&#8217;hui,
-            mais la base légale de chaque traitement, la durée de conservation exacte et
-            le statut des transferts hors UE n&#8217;ont pas été validés par un
-            professionnel du droit. Voir les avertissements dans chaque section
-            concernée.
+            mais la base légale de chaque traitement et le statut des transferts hors UE
+            n&#8217;ont pas été validés par un professionnel du droit. Voir les
+            avertissements dans chaque section concernée.
           </div>
 
           <section className={styles.legalSection}>
@@ -134,14 +133,19 @@ export default function ConfidentialitePage() {
           <section className={styles.legalSection}>
             <h2>Durée de conservation</h2>
             <p>
-              Vos données sont conservées tant que votre compte reste actif. Une
-              suppression de compte entraîne la suppression de vos sujets, sources,
-              favoris et articles écartés associés.{" "}
-              <em>
-                Point à faire confirmer par un professionnel : un délai précis de purge
-                après suppression n&#8217;est pas encore formalisé au moment de la
-                rédaction de cette page.
-              </em>
+              Vos données sont conservées tant que votre compte reste actif, et au
+              maximum 12 mois après votre dernière connexion. Passé ce délai
+              d&#8217;inactivité, votre compte et les données associées (sujets, sources,
+              favoris, articles écartés) sont supprimés automatiquement.
+            </p>
+            <p>
+              Un email vous est envoyé un mois avant cette suppression : il vous suffit
+              de vous reconnecter avant l&#8217;échéance si vous souhaitez conserver votre
+              compte.
+            </p>
+            <p>
+              Une suppression de compte à votre demande (voir « Vos droits »
+              ci-dessous) entraîne la suppression immédiate de ces mêmes données.
             </p>
           </section>
 

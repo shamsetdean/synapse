@@ -9,11 +9,13 @@ import styles from "./dashboard.module.css";
 export default function ConfigView({
   stats,
   sources,
+  display,
 }: {
   stats: ReactNode;
   sources: ReactNode;
+  display: ReactNode;
 }) {
-  const [tab, setTab] = useState<"stats" | "sources">("stats");
+  const [tab, setTab] = useState<"stats" | "sources" | "display">("stats");
 
   return (
     <>
@@ -40,10 +42,20 @@ export default function ConfigView({
           >
             Sources connectées
           </button>
+          <button
+            type="button"
+            onClick={() => setTab("display")}
+            aria-current={tab === "display" ? "true" : undefined}
+            className={`${styles.configTab} ${
+              tab === "display" ? styles.configTabActive : ""
+            }`}
+          >
+            Affichage
+          </button>
         </div>
       </div>
 
-      {tab === "stats" ? stats : sources}
+      {tab === "stats" ? stats : tab === "sources" ? sources : display}
     </>
   );
 }
