@@ -1324,6 +1324,20 @@
   gap: var(--sy-space-8);
 }
 
+.footerLinks {
+  display: flex;
+  gap: var(--sy-space-16);
+}
+
+.footerLinks a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.footerLinks a:hover {
+  color: var(--violet-deep);
+}
+
 /* ==========================================================================
    Adaptation aux écrans.
 
