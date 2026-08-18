@@ -12,6 +12,64 @@ import DashboardShell from "./dashboard-shell";
 import ConfigView from "./config-view";
 import styles from "./dashboard.module.css";
 
+type SortBy = "date" | "source" | "topic";
+type Density = "compact" | "comfortable";
+type VisibleFields = { source: boolean; freshness: boolean; summary: boolean };
+type UserPreferences = {
+  sortBy: SortBy;
+  density: Density;
+  visibleFields: VisibleFields;
+};
+
+// Valeurs par défaut : utilisées tant qu'aucune ligne user_preferences
+// n'existe encore pour cet utilisateur (avant son premier réglage), et pour
+// compléter tout champ manquant ou invalide dans une ligne existante.
+const DEFAULT_PREFERENCES: UserPreferences = {
+  sortBy: "date",
+  density: "comfortable",
+  visibleFields: { source: true, freshness: true, summary: true },
+};
+
+function isSortBy(value: unknown): value is SortBy {
+  return value === "date" || value === "source" || value === "topic";
+}
+
+function isDensity(value: unknown): value is Density {
+  return value === "compact" || value === "comfortable";
+}
+
+// visible_fields est une colonne jsonb : sa forme n'est garantie ni par les
+// types ni par une contrainte en base, contrairement à sort_by/density (déjà
+// verrouillées par un CHECK). Même logique défensive que normalizeBlocks
+// pour site_layout.blocks — filtrer/compléter plutôt que faire confiance.
+function normalizeVisibleFields(raw: unknown): VisibleFields {
+  const source = raw as Record<string, unknown> | null | undefined;
+  return {
+    source:
+      typeof source?.source === "boolean"
+        ? source.source
+        : DEFAULT_PREFERENCES.visibleFields.source,
+    freshness:
+      typeof source?.freshness === "boolean"
+        ? source.freshness
+        : DEFAULT_PREFERENCES.visibleFields.freshness,
+    summary:
+      typeof source?.summary === "boolean"
+        ? source.summary
+        : DEFAULT_PREFERENCES.visibleFields.summary,
+  };
+}
+
+function normalizePreferences(
+  raw: { sort_by?: unknown; density?: unknown; visible_fields?: unknown } | null | undefined,
+): UserPreferences {
+  return {
+    sortBy: isSortBy(raw?.sort_by) ? raw.sort_by : DEFAULT_PREFERENCES.sortBy,
+    density: isDensity(raw?.density) ? raw.density : DEFAULT_PREFERENCES.density,
+    visibleFields: normalizeVisibleFields(raw?.visible_fields),
+  };
+}
+
 export default async function DashboardPage() {
   const supabase = await createClient();
   const {
@@ -46,6 +104,14 @@ export default async function DashboardPage() {
   const { data: dismissedRows } = await supabase
     .from("dismissed_articles")
     .select("article_id");
+
+  const { data: preferencesRow } = await supabase
+    .from("user_preferences")
+    .select("sort_by, density, visible_fields")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  const preferences = normalizePreferences(preferencesRow);
 
   const favoritedIds = (favoriteRows ?? []).map((r) => r.article_id as string);
   const dismissedIds = new Set(
