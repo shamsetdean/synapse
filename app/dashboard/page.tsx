@@ -10,6 +10,7 @@ import StatsPanel from "./stats-panel";
 import UserSourcesPanel from "./user-sources-panel";
 import DashboardShell from "./dashboard-shell";
 import ConfigView from "./config-view";
+import PreferencesPanel from "./preferences-panel";
 import styles from "./dashboard.module.css";
 
 type SortBy = "date" | "source" | "topic";
@@ -225,6 +226,7 @@ export default async function DashboardPage() {
       <ConfigView
         stats={<StatsPanel userId={user.id} />}
         sources={<UserSourcesPanel initialSources={userSources ?? []} />}
+        display={<PreferencesPanel initialPreferences={preferences} />}
       />
     </div>
   );
