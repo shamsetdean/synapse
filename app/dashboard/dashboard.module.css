@@ -826,6 +826,15 @@
   letter-spacing: var(--sy-tracking-wide);
 }
 
+/* Visible uniquement hors mode "sujet" (tri par date ou par source) : sans
+   en-tête de groupe pour le porter, l'appartenance à un sujet doit rester
+   lisible sur la card elle-même. Même teinte que .topicGroupName, pour que
+   ce soit reconnaissable comme une information de sujet où qu'elle
+   apparaisse. */
+.articleTopicTag {
+  color: var(--violet);
+}
+
 .articleTitle {
   font-weight: var(--sy-weight-semibold);
   font-size: var(--sy-size-14-5);
