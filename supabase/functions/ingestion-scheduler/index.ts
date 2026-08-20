@@ -100,6 +100,7 @@ const MAX_REDIRECTS = 5;
 const MAX_RESPONSE_BYTES = 2_000_000;
 const TIMEOUT_MS = 10_000;
 const DNS_TIMEOUT_MS = 3_000;
+const MAX_CONSECUTIVE_FAILURES = 10;
 
 const BLOCKED_HOSTNAMES = new Set([
   "localhost",
@@ -512,7 +513,7 @@ Deno.serve(async (req) => {
     // --- Sources personnalisées (RSS-compatibles, dues pour sync) -----------
     const { data: userSources } = await supabase
       .from("user_sources")
-      .select("id, user_id, url, type, sync_frequency_minutes, last_synced_at")
+      .select("id, user_id, url, type, sync_frequency_minutes, last_synced_at, consecutive_failures")
       .eq("active", true)
       .in("type", RSS_COMPATIBLE_TYPES);
 
@@ -566,6 +567,7 @@ Deno.serve(async (req) => {
             last_synced_at: new Date().toISOString(),
             last_test_status: "success",
             last_test_message: null,
+            consecutive_failures: 0,
           })
           .eq("id", source.id);
       } catch (err) {
@@ -591,6 +593,15 @@ Deno.serve(async (req) => {
             ? "Cette adresse n'est pas autorisée."
             : "Impossible de récupérer ce flux.";
 
+        // Compteur d'échecs consécutifs : une source qui échoue trop souvent
+        // est désactivée automatiquement plutôt que de continuer à générer
+        // des erreurs indéfiniment à chaque cycle.
+        const failures = (source.consecutive_failures ?? 0) + 1;
+        const shouldDisable = failures >= MAX_CONSECUTIVE_FAILURES;
+        const finalMessage = shouldDisable
+          ? `${message} Source désactivée automatiquement après ${failures} échecs consécutifs.`
+          : message;
+
         // last_synced_at est mis à jour même en cas d'échec : sans cela, une
         // source durablement en panne resterait en tête de file et bloquerait
         // toutes les autres à chaque cycle.
@@ -599,7 +610,9 @@ Deno.serve(async (req) => {
           .update({
             last_synced_at: new Date().toISOString(),
             last_test_status: "error",
-            last_test_message: message,
+            last_test_message: finalMessage,
+            consecutive_failures: failures,
+            active: shouldDisable ? false : true,
           })
           .eq("id", source.id);
       }
