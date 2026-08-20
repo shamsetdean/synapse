@@ -10,3 +10,6 @@ build/
 next-env.d.ts
 *.tsbuildinfo
 npm-debug.log*
+CLAUDE.md
+AGENTS.md
+supabase/.temp/
