@@ -99,6 +99,7 @@ const ALLOWED_PROTOCOLS = new Set(["http:", "https:"]);
 const MAX_REDIRECTS = 5;
 const MAX_RESPONSE_BYTES = 2_000_000;
 const TIMEOUT_MS = 10_000;
+const DNS_TIMEOUT_MS = 3_000;
 
 const BLOCKED_HOSTNAMES = new Set([
   "localhost",
@@ -170,7 +171,12 @@ async function assertHostAllowed(hostname: string): Promise<void> {
 
   let addresses: string[];
   try {
-    addresses = await Deno.resolveDns(host, "A");
+    addresses = await Promise.race([
+      Deno.resolveDns(host, "A"),
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error("DNS_TIMEOUT")), DNS_TIMEOUT_MS)
+      ),
+    ]);
   } catch {
     return;
   }
