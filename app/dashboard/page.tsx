@@ -236,13 +236,18 @@ export default async function DashboardPage() {
   const accountBlock = <ProfileMenu email={user.email ?? ""} />;
 
   const articlesSection = (
-    <div className={styles.main}>
-      <div className={styles.articleHead}>
-        <h2 className={styles.sectionH2}>Articles</h2>
-      </div>
+    <div className={`${styles.main} ${styles.mainArticlesCompact}`}>
       {articles.length === 0 ? (
-        <ArticlesEmptyState />
+        <>
+          <div className={styles.articleHead}>
+            <h2 className={styles.sectionH2}>Articles</h2>
+          </div>
+          <ArticlesEmptyState />
+        </>
       ) : (
+        // Le titre "Articles" (+ légende, bascule, cadran) vit désormais
+        // dans ArticlesView, dans un bandeau compact au-dessus de la sphère
+        // — voir le commentaire en tête de ce composant.
         <ArticlesView
           articles={articles}
           favoritedIds={favoritedIds}

@@ -42,6 +42,49 @@ export function topicColorFor(name: string, isLight: boolean): string {
   return isLight ? palette.light : palette.dark;
 }
 
+// Un sujet actif = un secteur angulaire (nébuleuse/nuage extérieur de la
+// sphère) + une couleur. Type partagé (et non plus local à
+// articles-sphere.tsx) : articles-view.tsx en a aussi besoin pour la légende
+// du bandeau compact au-dessus de la sphère (§ layout compact demandé),
+// calculée une seule fois là-haut puis transmise en prop à ArticlesSphere —
+// pas de second calcul divergent.
+export type TopicSlot = { name: string; angleDeg: number; colorDark: string; colorLight: string };
+
+// Même ordre que la page Sujets (topicOrder), "Sans sujet" toujours en
+// dernier (voir groupByTopic, article-feed.tsx). `articles` doit déjà être
+// filtré (écartés + fenêtre temporelle) par l'appelant.
+export function computeTopicSlots(
+  topicOrder: string[],
+  articles: { topicName: string }[],
+): TopicSlot[] {
+  const seen = new Set<string>();
+  const names: string[] = [];
+  for (const name of topicOrder) {
+    if (!seen.has(name)) {
+      seen.add(name);
+      names.push(name);
+    }
+  }
+  for (const a of articles) {
+    const key = a.topicName || "Sans sujet";
+    if (key !== "Sans sujet" && !seen.has(key)) {
+      seen.add(key);
+      names.push(key);
+    }
+  }
+  if (articles.some((a) => !a.topicName)) names.push("Sans sujet");
+  const n = Math.max(1, names.length);
+  return names.map((name, i) => {
+    const palette = TOPIC_PALETTE[hashString(name) % TOPIC_PALETTE.length];
+    return {
+      name,
+      angleDeg: -90 + (360 / n) * i,
+      colorDark: palette.dark,
+      colorLight: palette.light,
+    };
+  });
+}
+
 // Même lecture de data-theme que theme-provider.tsx, pour les composants qui
 // n'ont besoin que de savoir clair/sombre sans le reste du contexte de thème
 // (setTheme, etc.) — évite d'imposer useTheme() (qui exige ThemeProvider en

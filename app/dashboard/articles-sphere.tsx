@@ -3,8 +3,7 @@
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import type { FeedArticle } from "./article-feed";
 import ArticleDetailPanel from "./article-detail-panel";
-import AgeFilterDial from "./age-filter-dial";
-import { TOPIC_PALETTE, hashString, useIsLightTheme } from "./topic-colors";
+import { TOPIC_PALETTE, hashString, useIsLightTheme, type TopicSlot } from "./topic-colors";
 import styles from "./dashboard.module.css";
 
 // Vue sphère de la page Articles (cahier des charges §3). Rendu et animée en
@@ -50,8 +49,6 @@ function getReducedMotionServerSnapshot() {
   return false;
 }
 
-type TopicSlot = { name: string; angleDeg: number; colorDark: string; colorLight: string };
-
 type GrainState = {
   theta: number;
   phi: number;
@@ -89,19 +86,42 @@ const CY = 400;
 // leurs particules, troisième méridien. Voir aussi .sphereContainer dans
 // dashboard.module.css (largeur du conteneur, même valeur que la référence).
 const SPHERE_R = 200;
-const MAX_R = 368;
+// AVANT (rounds précédents) : bande extérieure 224-368 (224 = SPHERE_R*1.12),
+// soit 144 unités, et un jitter radial ±14. Plafond géométrique dur : au-delà
+// de ~398 unités (bord du viewBox 800, CX=400), les grains sortent visuellement
+// du cadre — déjà quasi atteint (368+14+drift+taille ≈ 396). Pousser encore
+// MAX_R sans réduire la sphère elle-même (agrandie sur demande explicite
+// précédente, §"agrandis-la encore") n'aurait donc rien changé. Le vrai levier
+// disponible sans toucher ce plafond : partir plus tôt (SPHERE_R*1.04 au lieu
+// de *1.12, +16 unités récupérées côté intérieur) et un jitter radial ~1.6x
+// plus large (±22 au lieu de ±14).
+const MAX_R = 362;
+const EXTERIOR_R_START = SPHERE_R * 1.04;
 const AUTO_SPIN_RAD_S = (4.2 * Math.PI) / 180;
 
-// Écart angulaire minimal (dans le secteur ±SLOT_HALF_WIDTH_DEG d'un sujet)
-// entre deux grains du nuage extérieur : le simple élargissement du jitter
-// (indépendant par grain, voir radialJitter*14 plus bas) réduit la densité
-// moyenne mais ne garantit rien pour deux grains dont le hash tombe par
-// hasard proche l'un de l'autre — vérifié : jusqu'à 6 paires quasi empilées
-// sur 22 grains d'un même sujet avant ce correctif. Cette relaxation ne
-// touche jamais le rayon (fraîcheur, §3.2) et reste dans le secteur du sujet
-// (angle=sujet, §3.2) : seule la position DANS le secteur change.
-const SLOT_HALF_WIDTH_DEG = 36;
-const MIN_ANGULAR_SEP_DEG = 7;
+// AVANT : secteur angulaire fixe ±36° (72° au total) quel que soit le nombre
+// de sujets réels — gâchait presque toute la place disponible avec 1-3
+// sujets (jusqu'à 360° dispo par sujet), et débordait déjà sur le secteur du
+// voisin dès 5 sujets (72° > 360/5=72°, donc pile à la limite, et pire au-delà).
+// APRÈS : secteur dynamique = 84% de la part réelle du sujet (360°/nombre de
+// sujets), plafonné à 80° pour ne pas non plus étaler un unique sujet sur
+// presque tout le tour. Calculé dans l'effet de synchronisation (a accès au
+// nombre réel de sujets affichés), pas ici — cette constante ne reste que
+// pour le plafond et le seuil de repli codés en dur ci-dessous.
+const SLOT_HALF_WIDTH_MAX_DEG = 80;
+// Écart angulaire minimal (dans le secteur du sujet) entre deux grains du
+// nuage extérieur : le simple élargissement du jitter (indépendant par
+// grain) réduit la densité moyenne mais ne garantit rien pour deux grains
+// dont le hash tombe par hasard proche l'un de l'autre — vérifié : jusqu'à 6
+// paires quasi empilées sur 22 grains d'un même sujet avant le tout premier
+// correctif (secteur fixe, 5°). AVANT (round précédent) : 7°. APRÈS : 20°,
+// ~3x — combiné au secteur désormais dynamique (souvent bien plus large que
+// les 72° fixes d'avant), le repli "réparti uniformément" (voir
+// relaxAngularOffsets) n'est plus systématiquement déclenché pour un nombre
+// réaliste de grains par sujet. Cette relaxation ne touche jamais le rayon
+// (fraîcheur, §3.2) et reste dans le secteur du sujet (angle=sujet, §3.2) :
+// seule la position DANS le secteur change.
+const MIN_ANGULAR_SEP_DEG = 20;
 
 // Écarte une liste de décalages angulaires (degrés, par rapport au centre du
 // secteur d'un sujet) d'au moins `minSep`, sans jamais sortir de
@@ -140,29 +160,34 @@ function relaxAngularOffsets(offsets: number[], halfWidth: number, minSep: numbe
 }
 
 export default function ArticlesSphere({
-  articles,
-  topicOrder,
+  visibleArticles,
+  topicSlots,
+  topicSlotByName,
+  maxAgeHours,
   cloudDensity = "normal",
   favoriteIds,
-  dismissedIds,
   pendingIds,
   userId,
   onToggleFavorite,
   onDismiss,
 }: {
-  articles: FeedArticle[];
-  topicOrder: string[];
+  // Déjà filtrés (écartés + fenêtre temporelle) par ArticlesView : état
+  // désormais partagé avec le bandeau compact au-dessus de la sphère (titre,
+  // légende, cadran de fraîcheur) et la vue Liste, une seule source de
+  // vérité plutôt que deux calculs qui pourraient diverger.
+  visibleArticles: FeedArticle[];
+  topicSlots: TopicSlot[];
+  topicSlotByName: Map<string, TopicSlot>;
+  maxAgeHours: number | null;
   cloudDensity?: CloudDensity;
   // État favori/écarté remonté dans use-article-actions.ts, partagé avec la
   // vue liste (articles-view.tsx) — voir le commentaire sur ce hook.
   favoriteIds: Set<string>;
-  dismissedIds: Set<string>;
   pendingIds: Set<string>;
   userId: string | null;
   onToggleFavorite: (id: string) => void;
   onDismiss: (id: string) => void;
 }) {
-  const [maxAgeHours, setMaxAgeHours] = useState<number | null>(72);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const reducedMotion = useSyncExternalStore(
     subscribeReducedMotion,
@@ -175,50 +200,6 @@ export default function ArticlesSphere({
   // plus haut) : inutile, selectedArticle (plus bas) est dérivé de
   // visibleArticles, qui exclut déjà les articles écartés — le panneau et
   // l'anneau de sélection disparaissent donc d'eux-mêmes au rendu suivant.
-
-  const visibleArticles = useMemo(() => {
-    const remaining = articles.filter((a) => !dismissedIds.has(a.id));
-    return maxAgeHours === null
-      ? remaining
-      : remaining.filter((a) => a.ageHours < maxAgeHours);
-  }, [articles, dismissedIds, maxAgeHours]);
-
-  // --- Répartition des sujets : même ordre que la page Sujets, "Sans
-  // sujet" toujours en dernier (voir groupByTopic, article-feed.tsx). ------
-  const topicSlots: TopicSlot[] = useMemo(() => {
-    const seen = new Set<string>();
-    const names: string[] = [];
-    for (const name of topicOrder) {
-      if (!seen.has(name)) {
-        seen.add(name);
-        names.push(name);
-      }
-    }
-    for (const a of visibleArticles) {
-      const key = a.topicName || "Sans sujet";
-      if (key !== "Sans sujet" && !seen.has(key)) {
-        seen.add(key);
-        names.push(key);
-      }
-    }
-    if (visibleArticles.some((a) => !a.topicName)) names.push("Sans sujet");
-    const n = Math.max(1, names.length);
-    return names.map((name, i) => {
-      const palette = TOPIC_PALETTE[hashString(name) % TOPIC_PALETTE.length];
-      return {
-        name,
-        angleDeg: -90 + (360 / n) * i,
-        colorDark: palette.dark,
-        colorLight: palette.light,
-      };
-    });
-  }, [topicOrder, visibleArticles]);
-
-  const topicSlotByName = useMemo(() => {
-    const map = new Map<string, TopicSlot>();
-    for (const slot of topicSlots) map.set(slot.name, slot);
-    return map;
-  }, [topicSlots]);
 
   // Volume par sujet DANS LA FENÊTRE TEMPORELLE ACTUELLE (visibleArticles,
   // déjà filtrée par maxAgeHours) — pour l'intensité de la nébuleuse
@@ -302,6 +283,16 @@ export default function ArticlesSphere({
       }
     });
 
+    // Secteur angulaire disponible par sujet, dynamique (voir commentaire de
+    // SLOT_HALF_WIDTH_MAX_DEG) : 84% de la part réelle (360°/nombre de
+    // sujets affichés), plafonné pour ne pas étaler un sujet isolé sur
+    // presque tout le tour.
+    const topicCountForSpacing = Math.max(1, topicSlots.length);
+    const exteriorHalfWidthDeg = Math.min(
+      SLOT_HALF_WIDTH_MAX_DEG,
+      (360 / topicCountForSpacing) * 0.42,
+    );
+
     // Angles relaxés du nuage extérieur, par sujet : recalculés à partir de
     // TOUS les grains extérieurs actuellement affichés de ce sujet (pas
     // seulement les nouveaux), pour que la distance minimale reste garantie
@@ -314,7 +305,7 @@ export default function ArticlesSphere({
       const topicKey = a.topicName || "Sans sujet";
       const angleDeg = topicSlotByName.get(topicKey)?.angleDeg ?? -90;
       const h = hashString(a.id);
-      const offset = (((h % 1000) / 1000) * 2 - 1) * SLOT_HALF_WIDTH_DEG;
+      const offset = (((h % 1000) / 1000) * 2 - 1) * exteriorHalfWidthDeg;
       const arr = exteriorByTopic.get(topicKey) ?? [];
       arr.push({ id: a.id, angleDeg, offset });
       exteriorByTopic.set(topicKey, arr);
@@ -323,7 +314,7 @@ export default function ArticlesSphere({
     for (const entries of exteriorByTopic.values()) {
       const relaxed = relaxAngularOffsets(
         entries.map((e) => e.offset),
-        SLOT_HALF_WIDTH_DEG,
+        exteriorHalfWidthDeg,
         MIN_ANGULAR_SEP_DEG,
       );
       entries.forEach((e, i) => relaxedAngleById.set(e.id, e.angleDeg + relaxed[i]));
@@ -387,14 +378,12 @@ export default function ArticlesSphere({
         gs.fill = topicColor(topicKey);
         gs.baseOpacity = 0.78;
       } else {
-        // Dispersion radiale doublée (±8 -> ±14) pour donner plus de
-        // respiration entre grains d'un même sujet et d'âge proche (la
-        // combinaison angle=sujet ± jitter serré + rayon=fraîcheur proche
-        // les fait facilement se chevaucher) — reste une fraction mineure
-        // (~10%) de l'étendue totale de la bande (MAX_R - SPHERE_R*1.12),
-        // donc ne brouille pas la lecture de la fraîcheur par la distance.
-        // L'angle (mapping sujet, §3.2) n'est volontairement pas touché.
-        gs.r3target = SPHERE_R * 1.12 + fraction * (MAX_R - SPHERE_R * 1.12) + radialJitter * 14;
+        // Dispersion radiale : AVANT ±8, puis ±14, désormais ±22 (~2,75x la
+        // toute première valeur) — reste une fraction mineure (~14%) de
+        // l'étendue de la bande (MAX_R - EXTERIOR_R_START), donc ne brouille
+        // pas la lecture de la fraîcheur par la distance. L'angle
+        // (mapping sujet, §3.2) n'est jamais touché par ce jitter radial.
+        gs.r3target = EXTERIOR_R_START + fraction * (MAX_R - EXTERIOR_R_START) + radialJitter * 22;
         gs.fill = fluxColor;
         gs.baseOpacity = 0.62;
       }
@@ -717,31 +706,6 @@ export default function ArticlesSphere({
 
   return (
     <div className={styles.sphereRoot}>
-      {/* Légende permanente des sujets (remplace l'ancien badge flottant au
-          survol d'une nébuleuse : superposé à la sphère, il masquait ce qu'il
-          y avait dessous et n'était pas accessible sans pointeur). */}
-      {topicSlots.length > 0 && (
-        <div className={styles.sphereTopicLegend} aria-label="Sujets actifs">
-          {topicSlots.map((slot) => (
-            <span key={slot.name} className={styles.sphereTopicLegendItem}>
-              <span
-                className={styles.detailTopicDot}
-                style={{ background: isLight ? slot.colorLight : slot.colorDark }}
-                aria-hidden="true"
-              />
-              {slot.name}
-            </span>
-          ))}
-        </div>
-      )}
-
-      <div className={styles.articleFilterBar}>
-        <span className={styles.sectionCount}>
-          {interiorCount} en favori{interiorCount > 1 ? "s" : ""} · {visibleArticles.length} dans le flux affiché
-        </span>
-        <AgeFilterDial value={maxAgeHours} onChange={setMaxAgeHours} />
-      </div>
-
       <div className={styles.sphereVizWrap}>
         <div className={styles.sphereContainer} ref={containerRef}>
           <svg viewBox="0 0 800 800" data-sphere-svg className={styles.sphereSvg} aria-hidden="true">
@@ -846,6 +810,7 @@ export default function ArticlesSphere({
       </div>
 
       <div className={styles.sphereLegend}>
+        {interiorCount} en favori{interiorCount > 1 ? "s" : ""} · {visibleArticles.length} dans le flux affiché ·
         distance au centre = fraîcheur · intérieur/extérieur = favori ou non · glisser pour pivoter, molette pour zoomer
       </div>
 

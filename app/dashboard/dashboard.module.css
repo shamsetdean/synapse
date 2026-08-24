@@ -70,8 +70,12 @@
   flex-wrap: wrap;
   /* Le sélecteur de vue n'habite plus la topbar depuis la structure v2
      (dock flottant, position: fixed en bas d'écran) : plus besoin de
-     réserve à droite ni de hauteur minimale calibrée pour un anneau. */
-  padding: 16px 28px;
+     réserve à droite ni de hauteur minimale calibrée pour un anneau.
+     Padding vertical resserré (16px -> 10px) : le bandeau compact demandé
+     pour le haut de la page Articles (titre + légende + filtres, voir
+     .articlesTopBar) tient sur une hauteur totale bien plus réduite quand le
+     bandeau au-dessus (celui-ci) ne prend pas plus de place que nécessaire. */
+  padding: 7px 28px;
   position: relative;
   border-bottom: 1px solid var(--line);
   position: sticky;
@@ -250,6 +254,13 @@
   width: 100%;
   margin: 0 auto;
   box-sizing: border-box;
+}
+
+/* Page Articles seulement (voir page.tsx) : padding haut resserré pour le
+   bandeau compact demandé (.articlesTopBar) — ne touche pas les autres
+   pages (Sujets, Config), qui gardent le padding standard de .main. */
+.mainArticlesCompact {
+  padding-top: 8px;
 }
 
 .sectionHead {
@@ -694,6 +705,54 @@
   display: flex;
   align-items: baseline;
   gap: var(--sy-space-10);
+}
+
+/* Bandeau compact du haut de la page Articles (titre + légende de sujets à
+   gauche, bascule Sphère/Liste + cadran de fraîcheur à droite) : remplace
+   l'empilement précédent (titre, puis bascule sur sa propre rangée, puis —
+   à l'intérieur d'ArticlesSphere — légende, puis barre de filtre, chacune
+   sur sa propre rangée pleine largeur), qui poussait la sphère loin sous la
+   ligne de flottaison. Un seul bloc flex sur deux rangées maximum (titre et
+   légende empilés à gauche, tous deux alignés avec la bascule/le cadran à
+   droite) tient dans une hauteur bien plus réduite. */
+/* Espacement resserré entre ce bandeau et la vue en dessous (sphère/liste) :
+   remplace le gap générique de .main (20px, pensé pour des sections plus
+   espacées comme Sujets/Config), qui à lui seul participait au dépassement
+   du budget de hauteur demandé pour le haut de la page Articles. */
+.articlesRoot {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sy-space-8);
+}
+
+.articlesTopBar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--sy-space-10);
+}
+
+.articlesTopBarLeft {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sy-space-4);
+  min-width: 0;
+}
+
+.articlesTopBarRight {
+  display: flex;
+  align-items: center;
+  gap: var(--sy-space-10);
+  flex-wrap: wrap;
+}
+
+/* .sphereTopicLegend centrait au-dessus de la sphère à l'origine ; la
+   légende a déménagé sous le titre (articles-view.tsx) — alignée à gauche,
+   sans marge basse propre à son ancienne position. */
+.articlesTopBarLegend {
+  justify-content: flex-start;
+  margin-bottom: 0;
 }
 
 .articleGrid {
@@ -2457,13 +2516,9 @@
   }
 }
 
-/* Bascule Sphère/Liste — même langage visuel que .ageFilterPill(s). */
-.viewToggleRow {
-  display: flex;
-  justify-content: flex-end;
-  margin-bottom: var(--sy-space-10);
-}
-
+/* Bascule Sphère/Liste — même langage visuel que .ageFilterPill(s). Vit
+   désormais dans .articlesTopBarRight (articles-view.tsx), plus sur sa
+   propre rangée pleine largeur (voir .articlesTopBar). */
 .viewToggle {
   display: flex;
   gap: var(--sy-space-2);
