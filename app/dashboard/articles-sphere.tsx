@@ -77,7 +77,12 @@ type GrainState = {
 const SVG_NS = "http://www.w3.org/2000/svg";
 const CX = 400;
 const CY = 400;
-const SPHERE_R = 230;
+// Valeurs reprises telles quelles de la simulation de référence validée
+// (claude.ai/code/artifact/6e3bbef5-b335-472e-8794-1937fd8e6975) plutôt
+// qu'estimées : SPHERE_R/MAX_R, distance des nébuleuses (300), formule de
+// leurs particules, troisième méridien. Voir aussi .sphereContainer dans
+// dashboard.module.css (largeur du conteneur, même valeur que la référence).
+const SPHERE_R = 200;
 const MAX_R = 368;
 const AUTO_SPIN_RAD_S = (4.2 * Math.PI) / 180;
 
@@ -179,7 +184,15 @@ export default function ArticlesSphere({
 
   const rotRef = useRef({ y: 0, x: 0, velY: 0, velX: 0 });
   const zoomRef = useRef(1);
-  const dragRef = useRef<{ x: number; y: number; t: number } | null>(null);
+  const dragRef = useRef<{
+    x: number;
+    y: number;
+    t: number;
+    startX: number;
+    startY: number;
+    pointerId: number;
+    captured: boolean;
+  } | null>(null);
   const reducedMotionRef = useRef(reducedMotion);
   useEffect(() => {
     reducedMotionRef.current = reducedMotion;
@@ -227,28 +240,35 @@ export default function ArticlesSphere({
       const fraction = Math.min(1, a.ageHours / wh);
       const interior = favoriteIds.has(a.id);
       const h = hashString(a.id);
+      // `>>>` (décalage NON signé) partout ci-dessous, jamais `>>` : h va
+      // jusqu'à 2^32-1 (hashString retourne `>>> 0`), donc pour la moitié des
+      // valeurs environ (h ≥ 2^31), un décalage signé réinterprète h comme un
+      // Int32 négatif, et `%1000` sur un nombre négatif reste négatif en JS.
+      // Bug vécu : `size = 52 + ((h>>20)%1000)/1000*66` sortait des valeurs
+      // de rayon SVG négatives ("<circle> attribute r: A negative value is
+      // not valid"), pour les nébuleuses comme pour les grains.
       const angleJitter = ((h % 1000) / 1000) * 2 - 1;
-      const radialJitter = (((h >> 10) % 1000) / 1000) * 2 - 1;
+      const radialJitter = (((h >>> 10) % 1000) / 1000) * 2 - 1;
       const freshFrac = Math.min(1, a.ageHours / 110);
 
       let gs = grainStateRef.current.get(a.id);
       if (!gs) {
         gs = {
           theta: ((angleDeg + angleJitter * 36) * Math.PI) / 180,
-          phi: ((90 + (((h >> 20) % 640) / 10 - 32)) * Math.PI) / 180,
+          phi: ((90 + (((h >>> 20) % 640) / 10 - 32)) * Math.PI) / 180,
           baseAngleDeg: angleDeg + angleJitter * 36,
           r3current: interior ? 6 : SPHERE_R * 1.3,
           r3target: 0,
           interior,
-          size: 3.4,
+          size: 4.7,
           fill: fluxColor,
           baseOpacity: 0.6,
-          driftPhase: ((h >> 4) % 1000) / 1000 * Math.PI * 2,
-          driftSpeed: 0.15 + (((h >> 8) % 1000) / 1000) * 0.25,
-          driftRadius: 3 + (((h >> 12) % 1000) / 1000) * 5,
-          twinklePhase: ((h >> 16) % 1000) / 1000 * Math.PI * 2,
-          twinkleSpeed: 0.5 + (((h >> 18) % 1000) / 1000) * 0.7,
-          pulsePhase: ((h >> 22) % 1000) / 1000 * Math.PI * 2,
+          driftPhase: ((h >>> 4) % 1000) / 1000 * Math.PI * 2,
+          driftSpeed: 0.15 + (((h >>> 8) % 1000) / 1000) * 0.25,
+          driftRadius: 3 + (((h >>> 12) % 1000) / 1000) * 5,
+          twinklePhase: ((h >>> 16) % 1000) / 1000 * Math.PI * 2,
+          twinkleSpeed: 0.5 + (((h >>> 18) % 1000) / 1000) * 0.7,
+          pulsePhase: ((h >>> 22) % 1000) / 1000 * Math.PI * 2,
           pulseSpeed: (2 * Math.PI) / 0.9 + freshFrac * ((2 * Math.PI) / 7 - (2 * Math.PI) / 0.9),
           pulseAmp: 0.16 - freshFrac * 0.115,
           lastX: CX,
@@ -257,7 +277,7 @@ export default function ArticlesSphere({
         grainStateRef.current.set(a.id, gs);
       }
       gs.interior = interior;
-      gs.size = 3.4;
+      gs.size = 4.7;
       if (interior) {
         gs.r3target = 16 + fraction * (SPHERE_R * 0.84 - 16) + radialJitter * 8;
         gs.fill = topicColor(topicKey);
@@ -473,16 +493,40 @@ export default function ArticlesSphere({
       svg!.style.transform = `scale(${zoomRef.current.toFixed(3)})`;
     }
 
+    // Seuil avant de considérer le geste comme un glisser (et donc d'appeler
+    // setPointerCapture) plutôt qu'un simple clic sur un grain. Nécessaire :
+    // une fois la capture posée sur le pointerdown, le navigateur redirige
+    // aussi le click de compatibilité vers l'élément capturant (le <svg>),
+    // pas vers le grain sous le curseur — un clic franc (sans déplacement)
+    // n'ouvrait donc jamais le panneau de détail, même si le clic
+    // "atterrissait" bien sur le grain. Bug vécu, reproduit avec un clic
+    // natif réel (Playwright .click()), pas seulement un dispatchEvent
+    // synthétique qui contourne cette redirection.
+    const DRAG_THRESHOLD = 4;
+
     function onPointerDown(e: PointerEvent) {
-      svg!.setPointerCapture(e.pointerId);
-      dragRef.current = { x: e.clientX, y: e.clientY, t: performance.now() };
+      dragRef.current = {
+        x: e.clientX,
+        y: e.clientY,
+        t: performance.now(),
+        startX: e.clientX,
+        startY: e.clientY,
+        pointerId: e.pointerId,
+        captured: false,
+      };
       rotRef.current.velY = 0;
       rotRef.current.velX = 0;
-      containerRef.current?.classList.add(styles.sphereDragging);
     }
     function onPointerMove(e: PointerEvent) {
       const drag = dragRef.current;
       if (!drag) return;
+      if (!drag.captured) {
+        const totalDist = Math.hypot(e.clientX - drag.startX, e.clientY - drag.startY);
+        if (totalDist < DRAG_THRESHOLD) return;
+        drag.captured = true;
+        svg!.setPointerCapture(drag.pointerId);
+        containerRef.current?.classList.add(styles.sphereDragging);
+      }
       const now = performance.now();
       const dtms = Math.max(1, now - drag.t);
       const dx = e.clientX - drag.x;
@@ -493,7 +537,9 @@ export default function ArticlesSphere({
       rot.x = Math.max(-0.95, Math.min(0.95, rot.x + dy * sens));
       rot.velY = ((dx * sens) / (dtms / 1000)) * 0.14;
       rot.velX = ((dy * sens) / (dtms / 1000)) * 0.14;
-      dragRef.current = { x: e.clientX, y: e.clientY, t: now };
+      drag.x = e.clientX;
+      drag.y = e.clientY;
+      drag.t = now;
     }
     function onPointerUp() {
       dragRef.current = null;
@@ -577,21 +623,38 @@ export default function ArticlesSphere({
 
             <g>
               {topicSlots.map((slot) => {
-                const ang = (slot.angleDeg * Math.PI) / 180;
-                const nx = CX + 300 * Math.cos(ang);
-                const ny = CY + 300 * Math.sin(ang);
                 const color = isLight ? slot.colorLight : slot.colorDark;
-                return (
-                  <circle
-                    key={slot.name}
-                    cx={nx}
-                    cy={ny}
-                    r={70}
-                    fill={color}
-                    opacity={0.17}
-                    filter="url(#sphereNebulaBlur)"
-                  />
-                );
+                // 6 particules qui se chevauchent par sujet, comme la
+                // simulation de référence (NEBULA_PARTICLES) — une seule
+                // particule fixe donnait une nébuleuse petite et clairsemée
+                // au lieu d'un halo large et lumineux. Décalage angulaire/
+                // radial et taille/opacité dérivés du hash du sujet plutôt
+                // que Math.random() : stables d'un rendu à l'autre (pas de
+                // scintillement au moindre re-rendu React), même formule que
+                // la référence (angleOff ±30°, radiusOff ±38, size 52-118,
+                // opacity 0.13-0.24).
+                return Array.from({ length: 6 }, (_, i) => {
+                  const h = hashString(`${slot.name}#${i}`);
+                  const angleOff = (((h % 1000) / 1000) * 2 - 1) * 30;
+                  const radiusOff = ((((h >>> 10) % 1000) / 1000) * 2 - 1) * 38;
+                  const size = 52 + (((h >>> 20) % 1000) / 1000) * 66;
+                  const baseOpacity = 0.13 + (((h >>> 4) % 1000) / 1000) * 0.11;
+                  const ang = ((slot.angleDeg + angleOff) * Math.PI) / 180;
+                  const rad = 300 + radiusOff;
+                  const nx = CX + rad * Math.cos(ang);
+                  const ny = CY + rad * Math.sin(ang);
+                  return (
+                    <circle
+                      key={`${slot.name}-${i}`}
+                      cx={nx}
+                      cy={ny}
+                      r={size}
+                      fill={color}
+                      opacity={baseOpacity}
+                      filter="url(#sphereNebulaBlur)"
+                    />
+                  );
+                });
               })}
             </g>
 
@@ -617,6 +680,7 @@ export default function ArticlesSphere({
             />
             <ellipse cx={CX} cy={CY} rx={SPHERE_R} ry={SPHERE_R * 0.35} fill="none" stroke={isLight ? "#534AB7" : "#5dcaa5"} strokeWidth="0.4" opacity="0.28" />
             <ellipse cx={CX} cy={CY} rx={SPHERE_R * 0.35} ry={SPHERE_R} fill="none" stroke={isLight ? "#534AB7" : "#5dcaa5"} strokeWidth="0.4" opacity="0.28" />
+            <ellipse cx={CX} cy={CY} rx={SPHERE_R} ry={SPHERE_R * 0.65} fill="none" stroke={isLight ? "#534AB7" : "#5dcaa5"} strokeWidth="0.4" opacity="0.2" />
 
             <g ref={grainLayerRef} />
             <circle ref={selectionRingRef} r="0" cx={CX} cy={CY} fill="none" stroke={isLight ? "#534AB7" : "#8b7cf6"} strokeWidth="1.4" className={styles.sphereRing} style={{ display: "none" }} />

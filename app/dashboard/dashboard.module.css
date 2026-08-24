@@ -2286,7 +2286,7 @@
 
 .sphereContainer {
   position: relative;
-  width: min(70vh, 560px);
+  width: min(78vh, 620px);
   max-width: 100%;
   aspect-ratio: 1 / 1;
 }
