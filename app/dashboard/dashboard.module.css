@@ -2305,9 +2305,21 @@
   justify-content: center;
 }
 
+/* 90vh ignorait tout ce qui occupe déjà l'écran au-dessus (bandeau + bloc
+   Articles/filtres/légende) et en dessous (navDock, en position: fixed donc
+   hors du flux — rien ne réserve sa hauteur), donc débordait sous le dock
+   sur les écrans bas (mesuré : bandeau+bloc titre = 326px, navDock = 42,5px
+   + 14px de marge = 56,5px, à n'importe quelle hauteur de fenêtre).
+   Réservés ci-dessous avec une marge de sécurité (une ligne de légende de
+   sujets supplémentaire en cas de retour à la ligne + un espace visuel
+   avant le dock) plutôt que les valeurs mesurées brutes :
+   - 370px en haut (326px mesurés + ~44px de marge)
+   - 90px en bas (56,5px mesurés + ~34px de marge)
+   clamp() garde un plancher lisible (320px) même sur une fenêtre très basse,
+   et le plafond existant (760px) pour les grands écrans. */
 .sphereContainer {
   position: relative;
-  width: min(90vh, 760px);
+  width: clamp(320px, calc(100vh - 460px), 760px);
   max-width: 100%;
   aspect-ratio: 1 / 1;
 }
