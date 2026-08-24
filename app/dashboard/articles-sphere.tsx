@@ -441,12 +441,9 @@ export default function ArticlesSphere({
       const id = selectedIdRef.current;
       const gs = id ? grainStateRef.current.get(id) : null;
       // Ancre sur la vraie position du panneau (article-detail-panel.tsx,
-      // #articleDetailPanel). Le panneau est en position: fixed (relatif au
-      // viewport), alors que le conteneur de la sphère est plus bas dans la
-      // page (bandeau + en-tête Articles + légende au-dessus) : viser un
-      // point fixe "haut du panneau + 40px" pouvait tomber au-dessus du
-      // conteneur et envoyer le trait hors-écran. On vise le milieu de la
-      // portion du panneau visible à l'écran, borné dans le conteneur.
+      // #articleDetailPanel), en ligne parfaitement horizontale (0°) depuis
+      // le grain : y2 = y1, jamais un point du panneau qui introduirait une
+      // pente.
       const panelEl = document.getElementById("articleDetailPanel");
       if (!overlay || !container || !gs || !panelEl) {
         if (connectorLineRef.current) {
@@ -471,11 +468,8 @@ export default function ArticlesSphere({
       const x1 = gs.lastX * scale;
       const y1 = gs.lastY * scale;
       const panelRect = panelEl.getBoundingClientRect();
-      const visibleTop = Math.max(panelRect.top, 0);
-      const visibleBottom = Math.min(panelRect.bottom, window.innerHeight);
-      const targetY = (visibleTop + visibleBottom) / 2;
       const x2 = panelRect.left - cRect.left;
-      const y2 = Math.max(16, Math.min(cRect.height - 16, targetY - cRect.top));
+      const y2 = y1;
       line.setAttribute("x1", x1.toFixed(1));
       line.setAttribute("y1", y1.toFixed(1));
       line.setAttribute("x2", x2.toFixed(1));
