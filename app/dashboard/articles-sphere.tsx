@@ -167,6 +167,21 @@ export default function ArticlesSphere({
     return map;
   }, [topicSlots]);
 
+  // Volume par sujet DANS LA FENÊTRE TEMPORELLE ACTUELLE (visibleArticles,
+  // déjà filtrée par maxAgeHours) — pour l'intensité de la nébuleuse
+  // (cahier des charges §3.1/§3.6) : un sujet sans aucun article dans la
+  // période affichée ne doit montrer aucune nébuleuse, pas une nébuleuse
+  // "fantôme" à intensité fixe comme avant.
+  const topicCounts = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const a of visibleArticles) {
+      const key = a.topicName || "Sans sujet";
+      map.set(key, (map.get(key) ?? 0) + 1);
+    }
+    return map;
+  }, [visibleArticles]);
+  const maxTopicCount = Math.max(1, ...topicCounts.values());
+
   // --- Refs DOM et état de rendu imperatif --------------------------------
   const containerRef = useRef<HTMLDivElement>(null);
   const grainLayerRef = useRef<SVGGElement>(null);
@@ -174,6 +189,7 @@ export default function ArticlesSphere({
   const grainStateRef = useRef<Map<string, GrainState>>(new Map());
   const selectionRingRef = useRef<SVGCircleElement>(null);
   const connectorRef = useRef<SVGSVGElement>(null);
+  const connectorLineRef = useRef<SVGLineElement | null>(null);
   const limbRef = useRef<SVGEllipseElement>(null);
   const fillGradRef = useRef<SVGRadialGradientElement>(null);
 
@@ -424,25 +440,46 @@ export default function ArticlesSphere({
       const container = containerRef.current;
       const id = selectedIdRef.current;
       const gs = id ? grainStateRef.current.get(id) : null;
-      if (!overlay || !container || !gs) {
-        if (overlay) overlay.replaceChildren();
+      // Ancre sur la vraie position du panneau (article-detail-panel.tsx,
+      // #articleDetailPanel). Le panneau est en position: fixed (relatif au
+      // viewport), alors que le conteneur de la sphère est plus bas dans la
+      // page (bandeau + en-tête Articles + légende au-dessus) : viser un
+      // point fixe "haut du panneau + 40px" pouvait tomber au-dessus du
+      // conteneur et envoyer le trait hors-écran. On vise le milieu de la
+      // portion du panneau visible à l'écran, borné dans le conteneur.
+      const panelEl = document.getElementById("articleDetailPanel");
+      if (!overlay || !container || !gs || !panelEl) {
+        if (connectorLineRef.current) {
+          connectorLineRef.current.remove();
+          connectorLineRef.current = null;
+        }
         return;
+      }
+      // Le trait est créé une seule fois puis seulement repositionné à
+      // chaque frame (attributs mutés, pas l'élément recréé) : le recréer en
+      // continu empêchait toute animation CSS (tracé/pulsation) de tourner,
+      // puisqu'un nouvel élément relance son animation à zéro à chaque frame.
+      let line = connectorLineRef.current;
+      if (!line) {
+        line = document.createElementNS(SVG_NS, "line");
+        line.setAttribute("class", styles.sphereConnectorLine);
+        overlay.appendChild(line);
+        connectorLineRef.current = line;
       }
       const cRect = container.getBoundingClientRect();
       const scale = cRect.width / 800;
       const x1 = gs.lastX * scale;
       const y1 = gs.lastY * scale;
-      const panelWidth = Math.min(380, window.innerWidth * 0.92);
-      const x2 = window.innerWidth - panelWidth - cRect.left;
-      const y2 = 90 - cRect.top;
-      overlay.replaceChildren();
-      const line = document.createElementNS(SVG_NS, "line");
+      const panelRect = panelEl.getBoundingClientRect();
+      const visibleTop = Math.max(panelRect.top, 0);
+      const visibleBottom = Math.min(panelRect.bottom, window.innerHeight);
+      const targetY = (visibleTop + visibleBottom) / 2;
+      const x2 = panelRect.left - cRect.left;
+      const y2 = Math.max(16, Math.min(cRect.height - 16, targetY - cRect.top));
       line.setAttribute("x1", x1.toFixed(1));
       line.setAttribute("y1", y1.toFixed(1));
       line.setAttribute("x2", x2.toFixed(1));
       line.setAttribute("y2", y2.toFixed(1));
-      line.setAttribute("class", styles.sphereConnectorLine);
-      overlay.appendChild(line);
     }
 
     function tick(ts: number) {
@@ -623,6 +660,18 @@ export default function ArticlesSphere({
 
             <g>
               {topicSlots.map((slot) => {
+                const count = topicCounts.get(slot.name) ?? 0;
+                // Aucun article de ce sujet dans la fenêtre temporelle
+                // actuelle : pas de nébuleuse "fantôme" (cahier des charges,
+                // ce tour-ci) — voir topicCounts plus haut.
+                if (count === 0) return null;
+                const volFrac = Math.min(1, count / maxTopicCount);
+                // Plancher (35% taille / 30% opacité) pour qu'un sujet avec
+                // un seul article reste visible plutôt que de disparaître
+                // presque totalement ; monte à 100% pour le sujet le plus
+                // fourni de la fenêtre actuelle.
+                const sizeMul = 0.35 + 0.65 * volFrac;
+                const opacityMul = 0.3 + 0.7 * volFrac;
                 const color = isLight ? slot.colorLight : slot.colorDark;
                 // 6 particules qui se chevauchent par sujet, comme la
                 // simulation de référence (NEBULA_PARTICLES) — une seule
@@ -632,13 +681,13 @@ export default function ArticlesSphere({
                 // que Math.random() : stables d'un rendu à l'autre (pas de
                 // scintillement au moindre re-rendu React), même formule que
                 // la référence (angleOff ±30°, radiusOff ±38, size 52-118,
-                // opacity 0.13-0.24).
+                // opacity 0.13-0.24), mise à l'échelle par sizeMul/opacityMul.
                 return Array.from({ length: 6 }, (_, i) => {
                   const h = hashString(`${slot.name}#${i}`);
                   const angleOff = (((h % 1000) / 1000) * 2 - 1) * 30;
                   const radiusOff = ((((h >>> 10) % 1000) / 1000) * 2 - 1) * 38;
-                  const size = 52 + (((h >>> 20) % 1000) / 1000) * 66;
-                  const baseOpacity = 0.13 + (((h >>> 4) % 1000) / 1000) * 0.11;
+                  const size = (52 + (((h >>> 20) % 1000) / 1000) * 66) * sizeMul;
+                  const baseOpacity = (0.13 + (((h >>> 4) % 1000) / 1000) * 0.11) * opacityMul;
                   const ang = ((slot.angleDeg + angleOff) * Math.PI) / 180;
                   const rad = 300 + radiusOff;
                   const nx = CX + rad * Math.cos(ang);

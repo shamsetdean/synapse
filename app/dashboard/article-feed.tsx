@@ -25,6 +25,10 @@ export type FeedArticle = {
   // serveur et l'hydratation produisaient deux valeurs différentes, donc une
   // couleur de fraîcheur et un libellé d'âge potentiellement divergents.
   ageHours: number;
+  // "fr" ou "en" — déjà en base (articles.language, alimenté par
+  // detectLanguage() dans ingestion-scheduler), pas une nouvelle colonne.
+  // Affiché dans le panneau de détail de la vue sphère (article-detail-panel.tsx).
+  language: string | null;
 };
 
 type VisibleFields = { source: boolean; freshness: boolean; summary: boolean };

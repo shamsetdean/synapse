@@ -53,6 +53,7 @@ export default function ArticleDetailPanel({
         aria-hidden="true"
       />
       <aside
+        id="articleDetailPanel"
         className={`${styles.detailPanel} ${open ? styles.detailPanelOpen : ""}`}
         aria-hidden={!open}
         aria-label="Détail de l'article"
@@ -68,14 +69,21 @@ export default function ArticleDetailPanel({
                 />
                 {article.topicName || "Sans sujet"}
               </div>
-              <button
-                type="button"
-                onClick={onClose}
-                aria-label="Fermer le détail"
-                className={styles.detailCloseBtn}
-              >
-                ✕
-              </button>
+              <div className={styles.detailHeadRight}>
+                <button
+                  type="button"
+                  onClick={onClose}
+                  aria-label="Fermer le détail"
+                  className={styles.detailCloseBtn}
+                >
+                  ✕
+                </button>
+                {article.language && (
+                  <span className={styles.detailLangBadge} title="Langue de l'article">
+                    {article.language.toUpperCase()}
+                  </span>
+                )}
+              </div>
             </div>
 
             <div className={styles.detailBody}>
