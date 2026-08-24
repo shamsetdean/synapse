@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { topicColorFor, useIsLightTheme } from "./topic-colors";
 import styles from "./dashboard.module.css";
 
 type Topic = {
@@ -15,13 +16,31 @@ type Topic = {
 // Carte de sujet reprise de la charte : pastille de statut, mots-clés en
 // puces individuelles, ligne d'actions avec Pause à gauche et Supprimer en
 // texte simple à droite.
-export default function TopicCard({ topic }: { topic: Topic }) {
+//
+// Ajouts de forme uniquement (cahier des charges §4) : accent nébuleuse
+// pulsant à côté du nom (intensité liée au volume d'articles du sujet,
+// éteint en pause), et troncature ellipsis du nom pour qu'il ne passe jamais
+// sous le badge de statut.
+export default function TopicCard({
+  topic,
+  articleCount,
+  maxArticleCount,
+}: {
+  topic: Topic;
+  articleCount: number;
+  maxArticleCount: number;
+}) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const supabase = createClient();
   const router = useRouter();
+  const isLight = useIsLightTheme();
 
   const paused = topic.status !== "active";
+  const volFrac = Math.min(1, articleCount / Math.max(1, maxArticleCount));
+  const pulseAmp = 1.01 + volFrac * 0.09;
+  const pulseDur = 5.2 - volFrac * 3.4;
+  const accentColor = topicColorFor(topic.name, isLight);
 
   async function togglePause() {
     setLoading(true);
@@ -59,7 +78,19 @@ export default function TopicCard({ topic }: { topic: Topic }) {
   return (
     <>
       <div className={styles.topicHeadRow}>
-        <div className={styles.topicName}>{topic.name}</div>
+        <span
+          className={`${styles.topicNebulaDot} ${paused ? styles.topicNebulaDotPaused : ""}`}
+          style={{
+            background: accentColor,
+            boxShadow: `0 0 10px 3px ${accentColor}55`,
+            ["--sy-pulse-amp" as string]: pulseAmp,
+            ["--sy-pulse-dur" as string]: `${pulseDur}s`,
+          }}
+          aria-hidden="true"
+        />
+        <div className={styles.topicName} title={topic.name}>
+          {topic.name}
+        </div>
         <div
           className={`${styles.statusPill} ${
             paused ? styles.statusPillPaused : styles.statusPillActive

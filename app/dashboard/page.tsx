@@ -4,7 +4,7 @@ import ProfileMenu from "./profile-menu";
 import SynapseMark from "./synapse-mark";
 import NewTopicForm from "./new-topic-form";
 import TopicSortableList from "./topic-sortable-list";
-import ArticleFeed from "./article-feed";
+import ArticlesView from "./articles-view";
 import ArticlesEmptyState from "./articles-empty-state";
 import StatsPanel from "./stats-panel";
 import UserSourcesPanel from "./user-sources-panel";
@@ -16,10 +16,14 @@ import styles from "./dashboard.module.css";
 type SortBy = "date" | "source" | "topic";
 type Density = "compact" | "comfortable";
 type VisibleFields = { source: boolean; freshness: boolean; summary: boolean };
+type DefaultView = "sphere" | "list";
+type CloudDensity = "light" | "normal" | "dense";
 type UserPreferences = {
   sortBy: SortBy;
   density: Density;
   visibleFields: VisibleFields;
+  defaultView: DefaultView;
+  cloudDensity: CloudDensity;
 };
 
 // Valeurs par défaut : utilisées tant qu'aucune ligne user_preferences
@@ -29,6 +33,8 @@ const DEFAULT_PREFERENCES: UserPreferences = {
   sortBy: "date",
   density: "comfortable",
   visibleFields: { source: true, freshness: true, summary: true },
+  defaultView: "sphere",
+  cloudDensity: "normal",
 };
 
 function isSortBy(value: unknown): value is SortBy {
@@ -39,10 +45,23 @@ function isDensity(value: unknown): value is Density {
   return value === "compact" || value === "comfortable";
 }
 
+function isDefaultView(value: unknown): value is DefaultView {
+  return value === "sphere" || value === "list";
+}
+
+function isCloudDensity(value: unknown): value is CloudDensity {
+  return value === "light" || value === "normal" || value === "dense";
+}
+
 // visible_fields est une colonne jsonb : sa forme n'est garantie ni par les
 // types ni par une contrainte en base, contrairement à sort_by/density (déjà
 // verrouillées par un CHECK). Même logique défensive que normalizeBlocks
 // pour site_layout.blocks — filtrer/compléter plutôt que faire confiance.
+//
+// defaultView et cloudDensity (forme, §5.3) vivent dans cette même colonne
+// plutôt que dans de nouvelles colonnes : elle est justement prévue pour
+// accueillir des champs qui n'existent pas encore côté schéma. Pas de
+// migration pour deux réglages d'affichage.
 function normalizeVisibleFields(raw: unknown): VisibleFields {
   const source = raw as Record<string, unknown> | null | undefined;
   return {
@@ -61,6 +80,20 @@ function normalizeVisibleFields(raw: unknown): VisibleFields {
   };
 }
 
+function normalizeDefaultView(raw: unknown): DefaultView {
+  const source = raw as Record<string, unknown> | null | undefined;
+  return isDefaultView(source?.defaultView)
+    ? source.defaultView
+    : DEFAULT_PREFERENCES.defaultView;
+}
+
+function normalizeCloudDensity(raw: unknown): CloudDensity {
+  const source = raw as Record<string, unknown> | null | undefined;
+  return isCloudDensity(source?.cloudDensity)
+    ? source.cloudDensity
+    : DEFAULT_PREFERENCES.cloudDensity;
+}
+
 function normalizePreferences(
   raw: { sort_by?: unknown; density?: unknown; visible_fields?: unknown } | null | undefined,
 ): UserPreferences {
@@ -68,6 +101,8 @@ function normalizePreferences(
     sortBy: isSortBy(raw?.sort_by) ? raw.sort_by : DEFAULT_PREFERENCES.sortBy,
     density: isDensity(raw?.density) ? raw.density : DEFAULT_PREFERENCES.density,
     visibleFields: normalizeVisibleFields(raw?.visible_fields),
+    defaultView: normalizeDefaultView(raw?.visible_fields),
+    cloudDensity: normalizeCloudDensity(raw?.visible_fields),
   };
 }
 
@@ -92,6 +127,19 @@ export default async function DashboardPage() {
     )
     .order("published_at", { foreignTable: "articles", ascending: false })
     .limit(150);
+
+  // Volume d'articles par sujet, pour l'intensité de l'accent nébuleuse de
+  // chaque carte (cahier des charges §4). Requête séparée et légère (une
+  // seule colonne, sans limite) : la requête ci-dessus est plafonnée à 150
+  // lignes et triée par récence, donc impropre à un compte total par sujet.
+  const { data: topicCountRows } = await supabase
+    .from("article_topics")
+    .select("topic_id");
+  const articleCountByTopic = new Map<string, number>();
+  for (const row of topicCountRows ?? []) {
+    const id = row.topic_id as string;
+    articleCountByTopic.set(id, (articleCountByTopic.get(id) ?? 0) + 1);
+  }
 
   const { data: userSources } = await supabase
     .from("user_sources")
@@ -193,13 +241,15 @@ export default async function DashboardPage() {
       {articles.length === 0 ? (
         <ArticlesEmptyState />
       ) : (
-        <ArticleFeed
+        <ArticlesView
           articles={articles}
           favoritedIds={favoritedIds}
           topicOrder={topicOrder}
           sortBy={preferences.sortBy}
           density={preferences.density}
           visibleFields={preferences.visibleFields}
+          defaultView={preferences.defaultView}
+          cloudDensity={preferences.cloudDensity}
         />
       )}
     </div>
@@ -215,7 +265,10 @@ export default async function DashboardPage() {
           figé jusqu'au rechargement de la page. */}
       <TopicSortableList
         key={(topics ?? []).map((t) => `${t.id}:${t.status}`).join(",")}
-        initialTopics={topics ?? []}
+        initialTopics={(topics ?? []).map((t) => ({
+          ...t,
+          articleCount: articleCountByTopic.get(t.id) ?? 0,
+        }))}
       />
       <NewTopicForm />
     </div>

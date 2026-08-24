@@ -7,12 +7,12 @@ import {
   useState,
   type MouseEvent,
 } from "react";
-import { createClient } from "@/lib/supabase/client";
 import { useAnimatedNumber } from "./use-animated-number";
 import AgeFilterDial from "./age-filter-dial";
+import { ageLabel, freshnessColor } from "./freshness";
 import styles from "./dashboard.module.css";
 
-type FeedArticle = {
+export type FeedArticle = {
   id: string;
   title: string;
   url: string;
@@ -28,33 +28,6 @@ type FeedArticle = {
 };
 
 type VisibleFields = { source: boolean; freshness: boolean; summary: boolean };
-
-// Interpolation de couleur de la charte, entre l'extrémité froide et
-// l'accent, sur une fenêtre de soixante-douze heures.
-function lerp(a: number, b: number, t: number): number {
-  return a + (b - a) * t;
-}
-
-function hexToRgb(hex: string): [number, number, number] {
-  const n = parseInt(hex.slice(1), 16);
-  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
-}
-
-function mixColor(hexA: string, hexB: string, t: number): string {
-  const a = hexToRgb(hexA);
-  const b = hexToRgb(hexB);
-  return `rgb(${Math.round(lerp(a[0], b[0], t))},${Math.round(
-    lerp(a[1], b[1], t),
-  )},${Math.round(lerp(a[2], b[2], t))})`;
-}
-
-// Format de la charte : minutes en deçà d'une heure, heures en deçà d'un
-// jour, puis jours et heures.
-function ageLabel(hours: number): string {
-  if (hours < 1) return `${Math.round(hours * 60)} min`;
-  if (hours < 24) return `${Math.round(hours)} h`;
-  return `${Math.floor(hours / 24)} j ${Math.round(hours % 24)} h`;
-}
 
 type SortBy = "date" | "source" | "topic";
 
@@ -173,107 +146,32 @@ type Density = "compact" | "comfortable";
 
 export default function ArticleFeed({
   articles,
-  favoritedIds,
   topicOrder,
   sortBy,
   density,
   visibleFields,
+  favoriteIds,
+  dismissedIds,
+  pendingIds,
+  userId,
+  onToggleFavorite,
+  onDismiss,
 }: {
   articles: FeedArticle[];
-  favoritedIds: string[];
   topicOrder: string[];
   sortBy: SortBy;
   density: Density;
   visibleFields: VisibleFields;
+  // État favori/écarté remonté dans use-article-actions.ts, partagé avec la
+  // vue sphère (articles-view.tsx) : voir le commentaire sur ce hook pour la
+  // raison (les deux vues divergeaient avant un rechargement complet).
+  favoriteIds: Set<string>;
+  dismissedIds: Set<string>;
+  pendingIds: Set<string>;
+  userId: string | null;
+  onToggleFavorite: (id: string) => void;
+  onDismiss: (id: string) => void;
 }) {
-  const supabase = useMemo(() => createClient(), []);
-
-  // "Écarté" retire l'article de la vue immédiatement (optimiste) ; l'écriture
-  // en base se fait en tâche de fond. dismissedIds ne contient donc que les
-  // décisions prises PENDANT cette session — les articles déjà écartés lors
-  // d'une session précédente sont filtrés côté serveur (page.tsx), en amont
-  // du tableau "articles" reçu ici.
-  const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set());
-  const [favoriteIds, setFavoriteIds] = useState<Set<string>>(
-    () => new Set(favoritedIds),
-  );
-  const [pendingIds, setPendingIds] = useState<Set<string>>(new Set());
-
-  // Récupéré une seule fois au montage plutôt qu'à chaque clic pour ne pas
-  // ajouter un aller-retour réseau à chaque action pouce ; suit le même
-  // schéma que new-topic-form.tsx (user_id explicite à l'écriture, aucune
-  // valeur par défaut côté base sur cette colonne).
-  const [userId, setUserId] = useState<string | null>(null);
-  useEffect(() => {
-    let cancelled = false;
-    supabase.auth.getUser().then(({ data }) => {
-      if (!cancelled) setUserId(data.user?.id ?? null);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [supabase]);
-
-  function setPending(id: string, isPending: boolean) {
-    setPendingIds((prev) => {
-      const next = new Set(prev);
-      if (isPending) next.add(id);
-      else next.delete(id);
-      return next;
-    });
-  }
-
-  async function toggleFavorite(id: string) {
-    if (!userId) return;
-    const wasFavorited = favoriteIds.has(id);
-    setFavoriteIds((prev) => {
-      const next = new Set(prev);
-      if (wasFavorited) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-    setPending(id, true);
-    const { error } = wasFavorited
-      ? await supabase
-          .from("favorites")
-          .delete()
-          .eq("article_id", id)
-          .eq("user_id", userId)
-      : await supabase
-          .from("favorites")
-          .insert({ article_id: id, user_id: userId });
-    setPending(id, false);
-    if (error) {
-      // Écriture refusée : on revient à l'état affiché avant le clic.
-      setFavoriteIds((prev) => {
-        const next = new Set(prev);
-        if (wasFavorited) next.add(id);
-        else next.delete(id);
-        return next;
-      });
-      console.error("favorites: échec de l'écriture", error);
-    }
-  }
-
-  async function dismissArticle(id: string) {
-    if (!userId) return;
-    setDismissedIds((prev) => new Set(prev).add(id));
-    setPending(id, true);
-    const { error } = await supabase
-      .from("dismissed_articles")
-      .insert({ article_id: id, user_id: userId });
-    setPending(id, false);
-    if (error) {
-      // Écriture refusée : l'article réapparaît dans le flux.
-      setDismissedIds((prev) => {
-        const next = new Set(prev);
-        next.delete(id);
-        return next;
-      });
-      console.error("dismissed_articles: échec de l'écriture", error);
-    }
-  }
-
   const remainingArticles = useMemo(
     () => articles.filter((article) => !dismissedIds.has(article.id)),
     [articles, dismissedIds],
@@ -381,15 +279,9 @@ export default function ArticleFeed({
                     0,
                     Math.min(1, 1 - article.ageHours / 72),
                   );
-                  // Les deux bornes reprennent des jetons de app/globals.css
-                  // (--sy-muted-dim et --sy-accent-gradient-from, thème DARK).
-                  // Recopiées en dur plutôt que lues via getComputedStyle :
-                  // le composant évite déjà toute API client-only pour que
-                  // le rendu serveur et l'hydratation ne divergent jamais
-                  // (voir le commentaire sur ageHours plus haut). À revoir
-                  // pour prendre en compte le thème LIGHT une fois le
-                  // ThemeProvider en place.
-                  const color = mixColor("#5c5b64", "#8b7cf6", fresh);
+                  // Bornes et interpolation partagées avec la vue sphère et le
+                  // panneau de détail : voir app/dashboard/freshness.ts.
+                  const color = freshnessColor(article.ageHours);
                   const archived = article.ageHours >= 72;
 
                   const isFavorited = favoriteIds.has(article.id);
@@ -459,7 +351,7 @@ export default function ArticleFeed({
                         <button
                           type="button"
                           disabled={isPending || !userId}
-                          onClick={() => toggleFavorite(article.id)}
+                          onClick={() => onToggleFavorite(article.id)}
                           aria-pressed={isFavorited}
                           aria-label={
                             isFavorited
@@ -475,7 +367,7 @@ export default function ArticleFeed({
                         <button
                           type="button"
                           disabled={isPending || !userId}
-                          onClick={() => dismissArticle(article.id)}
+                          onClick={() => onDismiss(article.id)}
                           aria-label="Retirer, ne m'intéresse pas"
                           className={`${styles.thumbBtn} ${styles.thumbBtnDismiss}`}
                         >

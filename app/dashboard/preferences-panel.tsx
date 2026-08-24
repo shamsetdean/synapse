@@ -7,10 +7,14 @@ import styles from "./dashboard.module.css";
 type SortBy = "date" | "source" | "topic";
 type Density = "compact" | "comfortable";
 type VisibleFields = { source: boolean; freshness: boolean; summary: boolean };
+type DefaultView = "sphere" | "list";
+type CloudDensity = "light" | "normal" | "dense";
 type Preferences = {
   sortBy: SortBy;
   density: Density;
   visibleFields: VisibleFields;
+  defaultView: DefaultView;
+  cloudDensity: CloudDensity;
 };
 
 const SORT_OPTIONS: { value: SortBy; label: string }[] = [
@@ -27,6 +31,21 @@ const FIELD_OPTIONS: { key: keyof VisibleFields; label: string }[] = [
   { key: "source", label: "Source" },
   { key: "freshness", label: "Fraîcheur" },
   { key: "summary", label: "Résumé" },
+];
+
+const VIEW_OPTIONS: { value: DefaultView; label: string }[] = [
+  { value: "sphere", label: "Sphère" },
+  { value: "list", label: "Liste" },
+];
+
+// "Curseur 3 crans" dans le cahier des charges, mais aucun contrôle de
+// formulaire natif (input range compris) n'est stylé ailleurs dans ce
+// panneau — voir le commentaire sur FIELD_OPTIONS ci-dessus. Trois pilules,
+// même langage que le reste du panneau, portent la même information.
+const CLOUD_DENSITY_OPTIONS: { value: CloudDensity; label: string }[] = [
+  { value: "light", label: "Léger" },
+  { value: "normal", label: "Normal" },
+  { value: "dense", label: "Dense" },
 ];
 
 export default function PreferencesPanel({
@@ -61,6 +80,18 @@ export default function PreferencesPanel({
     setError(null);
   }
 
+  function setDefaultView(value: DefaultView) {
+    setPreferences((prev) => ({ ...prev, defaultView: value }));
+    setSaved(false);
+    setError(null);
+  }
+
+  function setCloudDensity(value: CloudDensity) {
+    setPreferences((prev) => ({ ...prev, cloudDensity: value }));
+    setSaved(false);
+    setError(null);
+  }
+
   async function save() {
     setSaving(true);
     setError(null);
@@ -78,7 +109,14 @@ export default function PreferencesPanel({
         user_id: userId,
         sort_by: preferences.sortBy,
         density: preferences.density,
-        visible_fields: preferences.visibleFields,
+        // defaultView et cloudDensity partagent cette même colonne jsonb que
+        // visibleFields (voir normalizeDefaultView/normalizeCloudDensity,
+        // page.tsx) : pas de nouvelle colonne pour deux réglages de forme.
+        visible_fields: {
+          ...preferences.visibleFields,
+          defaultView: preferences.defaultView,
+          cloudDensity: preferences.cloudDensity,
+        },
         updated_at: new Date().toISOString(),
       },
       { onConflict: "user_id" },
@@ -158,6 +196,44 @@ export default function PreferencesPanel({
               aria-pressed={preferences.visibleFields[opt.key]}
               className={`${styles.prefPill} ${
                 preferences.visibleFields[opt.key] ? styles.prefPillActive : ""
+              }`}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className={styles.formField}>
+        <span className={styles.formLabel}>Vue par défaut des Articles</span>
+        <div className={styles.prefPills}>
+          {VIEW_OPTIONS.map((opt) => (
+            <button
+              key={opt.value}
+              type="button"
+              onClick={() => setDefaultView(opt.value)}
+              aria-pressed={preferences.defaultView === opt.value}
+              className={`${styles.prefPill} ${
+                preferences.defaultView === opt.value ? styles.prefPillActive : ""
+              }`}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className={styles.formField}>
+        <span className={styles.formLabel}>Densité du nuage (vue sphère)</span>
+        <div className={styles.prefPills}>
+          {CLOUD_DENSITY_OPTIONS.map((opt) => (
+            <button
+              key={opt.value}
+              type="button"
+              onClick={() => setCloudDensity(opt.value)}
+              aria-pressed={preferences.cloudDensity === opt.value}
+              className={`${styles.prefPill} ${
+                preferences.cloudDensity === opt.value ? styles.prefPillActive : ""
               }`}
             >
               {opt.label}

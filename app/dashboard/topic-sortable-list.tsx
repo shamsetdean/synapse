@@ -22,13 +22,14 @@ type Topic = {
   status: string;
   sort_order: number;
   keywords: { id: string; term: string }[];
+  articleCount: number;
 };
 
 // La charte emploie le glisser-déposer natif du navigateur. @dnd-kit est
 // conservé : le résultat à l'écran est identique, et ce comportement vient
 // d'être corrigé et vérifié. Le remplacer ferait courir un risque de
 // régression sans aucun gain visuel.
-function SortableTopic({ topic }: { topic: Topic }) {
+function SortableTopic({ topic, maxArticleCount }: { topic: Topic; maxArticleCount: number }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: topic.id });
 
@@ -42,7 +43,7 @@ function SortableTopic({ topic }: { topic: Topic }) {
       {...attributes}
       {...listeners}
     >
-      <TopicCard topic={topic} />
+      <TopicCard topic={topic} articleCount={topic.articleCount} maxArticleCount={maxArticleCount} />
     </div>
   );
 }
@@ -70,6 +71,7 @@ export default function TopicSortableList({
   );
 
   const activeCount = topics.filter((t) => t.status === "active").length;
+  const maxArticleCount = Math.max(1, ...topics.map((t) => t.articleCount));
 
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
@@ -171,7 +173,7 @@ export default function TopicSortableList({
           <SortableContext items={topics.map((t) => t.id)}>
             <div className={styles.topicGrid}>
               {topics.map((topic) => (
-                <SortableTopic key={topic.id} topic={topic} />
+                <SortableTopic key={topic.id} topic={topic} maxArticleCount={maxArticleCount} />
               ))}
             </div>
           </SortableContext>
@@ -185,7 +187,7 @@ export default function TopicSortableList({
                 topic.status !== "active" ? styles.topicCardPaused : ""
               }`}
             >
-              <TopicCard topic={topic} />
+              <TopicCard topic={topic} articleCount={topic.articleCount} maxArticleCount={maxArticleCount} />
             </div>
           ))}
         </div>
