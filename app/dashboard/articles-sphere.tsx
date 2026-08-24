@@ -310,6 +310,14 @@ export default function ArticlesSphere({
         el.setAttribute("class", styles.sphereGrain);
         el.setAttribute("r", "0");
         el.setAttribute("opacity", "0");
+        // Zone cliquable élargie sans toucher à l'apparence : un contour
+        // transparent (toujours "peint" pour le hit-testing SVG, comme un
+        // fill transparent — voir le bug de clic précédent) ajoute ~8px de
+        // marge tout autour du grain visuel (rayon réel ~4-6px), sans
+        // agrandir le point lui-même. Fixe une fois à la création, pas besoin
+        // de la remettre à jour à chaque frame (la marge ne varie pas).
+        el.setAttribute("stroke", "transparent");
+        el.setAttribute("stroke-width", "16");
         el.tabIndex = 0;
         el.setAttribute("role", "button");
         el.addEventListener("click", () => setSelectedId(a.id));
