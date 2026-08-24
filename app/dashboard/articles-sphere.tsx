@@ -77,7 +77,7 @@ type GrainState = {
 const SVG_NS = "http://www.w3.org/2000/svg";
 const CX = 400;
 const CY = 400;
-const SPHERE_R = 200;
+const SPHERE_R = 230;
 const MAX_R = 368;
 const AUTO_SPIN_RAD_S = (4.2 * Math.PI) / 180;
 
@@ -106,7 +106,6 @@ export default function ArticlesSphere({
 }) {
   const [maxAgeHours, setMaxAgeHours] = useState<number | null>(72);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [hoveredTopic, setHoveredTopic] = useState<string | null>(null);
   const reducedMotion = useSyncExternalStore(
     subscribeReducedMotion,
     getReducedMotionSnapshot,
@@ -529,6 +528,24 @@ export default function ArticlesSphere({
 
   return (
     <div className={styles.sphereRoot}>
+      {/* Légende permanente des sujets (remplace l'ancien badge flottant au
+          survol d'une nébuleuse : superposé à la sphère, il masquait ce qu'il
+          y avait dessous et n'était pas accessible sans pointeur). */}
+      {topicSlots.length > 0 && (
+        <div className={styles.sphereTopicLegend} aria-label="Sujets actifs">
+          {topicSlots.map((slot) => (
+            <span key={slot.name} className={styles.sphereTopicLegendItem}>
+              <span
+                className={styles.detailTopicDot}
+                style={{ background: isLight ? slot.colorLight : slot.colorDark }}
+                aria-hidden="true"
+              />
+              {slot.name}
+            </span>
+          ))}
+        </div>
+      )}
+
       <div className={styles.articleFilterBar}>
         <span className={styles.sectionCount}>
           {interiorCount} en favori{interiorCount > 1 ? "s" : ""} · {visibleArticles.length} dans le flux affiché
@@ -586,6 +603,7 @@ export default function ArticlesSphere({
               stroke={isLight ? "#534AB7" : "#5dcaa5"}
               strokeWidth="0.75"
               strokeOpacity="0.5"
+              className={styles.sphereBreathing}
             />
             <ellipse
               ref={limbRef}
@@ -600,59 +618,16 @@ export default function ArticlesSphere({
             <ellipse cx={CX} cy={CY} rx={SPHERE_R} ry={SPHERE_R * 0.35} fill="none" stroke={isLight ? "#534AB7" : "#5dcaa5"} strokeWidth="0.4" opacity="0.28" />
             <ellipse cx={CX} cy={CY} rx={SPHERE_R * 0.35} ry={SPHERE_R} fill="none" stroke={isLight ? "#534AB7" : "#5dcaa5"} strokeWidth="0.4" opacity="0.28" />
 
-            {/* Cercles invisibles de survol des nébuleuses : DOIVENT rester
-                sous le calque de grains (<g ref={grainLayerRef}>) dans l'ordre
-                du DOM. Un fill="transparent" reste cliquable en SVG (contrairement
-                à fill="none"), donc s'ils passaient au-dessus, ils intercepteraient
-                silencieusement le clic sur tout grain situé dans leur rayon —
-                c'est-à-dire la quasi-totalité des grains du flux extérieur, dont
-                la bande (SPHERE_R×1.12 à MAX_R) chevauche largement leur rayon de
-                105 centré à distance 300 du centre. Bug vécu : clic sur un grain
-                sans effet, sans erreur console (l'élément touché n'a pas de
-                onClick). */}
-            {topicSlots.map((slot) => {
-              const ang = (slot.angleDeg * Math.PI) / 180;
-              const nx = CX + 300 * Math.cos(ang);
-              const ny = CY + 300 * Math.sin(ang);
-              return (
-                <circle
-                  key={`hit-${slot.name}`}
-                  cx={nx}
-                  cy={ny}
-                  r={105}
-                  className={styles.sphereNebulaHit}
-                  onPointerEnter={() => setHoveredTopic(slot.name)}
-                  onPointerLeave={() => setHoveredTopic((cur) => (cur === slot.name ? null : cur))}
-                />
-              );
-            })}
-
             <g ref={grainLayerRef} />
             <circle ref={selectionRingRef} r="0" cx={CX} cy={CY} fill="none" stroke={isLight ? "#534AB7" : "#8b7cf6"} strokeWidth="1.4" className={styles.sphereRing} style={{ display: "none" }} />
           </svg>
 
           <svg ref={connectorRef} className={styles.sphereConnectorOverlay} aria-hidden="true" />
-
-          {topicSlots.map((slot) => {
-            const ang = (slot.angleDeg * Math.PI) / 180;
-            const leftPct = ((CX + 300 * Math.cos(ang)) / 800) * 100;
-            const topPct = ((CY + 300 * Math.sin(ang)) / 800) * 100;
-            return (
-              <div
-                key={`label-${slot.name}`}
-                className={`${styles.sphereTopicLabel} ${hoveredTopic === slot.name ? styles.sphereTopicLabelShow : ""}`}
-                style={{ left: `${leftPct}%`, top: `${topPct}%` }}
-              >
-                <span className={styles.detailTopicDot} style={{ background: isLight ? slot.colorLight : slot.colorDark }} aria-hidden="true" />
-                {slot.name}
-              </div>
-            );
-          })}
         </div>
       </div>
 
       <div className={styles.sphereLegend}>
-        distance au centre = fraîcheur · intérieur/extérieur = favori ou non · glisser pour pivoter, molette pour zoomer, survolez une nébuleuse pour voir son nom
+        distance au centre = fraîcheur · intérieur/extérieur = favori ou non · glisser pour pivoter, molette pour zoomer
       </div>
 
       <ArticleDetailPanel

@@ -7,10 +7,24 @@ import { useEffect, useState } from "react";
 // entièrement créés par chaque utilisateur (table topics). Partagé entre
 // articles-sphere.tsx (nébuleuses) et topic-card.tsx (accent de la carte
 // Sujets) pour qu'un même sujet porte la même couleur aux deux endroits.
+// Accumulation polynomiale + finalisation (fmix32, façon Murmur3). La seule
+// accumulation (h = h*31 + code) a un effet avalanche faible : deux chaînes
+// qui ne diffèrent que par leur dernier caractère produisent des hachages
+// proches. articles-sphere.tsx en dérive à la fois l'angle et le décalage
+// radial d'un grain à partir de son id — un mauvais effet avalanche corrèle
+// alors silencieusement l'angle avec l'ordre d'insertion (ou tout id qui
+// varie peu d'un article à l'autre), et le nuage extérieur se dessine en
+// rayons quasi rectilignes au lieu d'un nuage dispersé. La finalisation
+// ci-dessous casse cette corrélation.
 export function hashString(s: string): number {
   let h = 0;
-  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
-  return h;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
+  h ^= h >>> 16;
+  h = Math.imul(h, 0x85ebca6b);
+  h ^= h >>> 13;
+  h = Math.imul(h, 0xc2b2ae35);
+  h ^= h >>> 16;
+  return h >>> 0;
 }
 
 export const TOPIC_PALETTE: { dark: string; light: string }[] = [

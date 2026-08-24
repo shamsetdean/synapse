@@ -2342,11 +2342,6 @@
   }
 }
 
-.sphereNebulaHit {
-  fill: transparent;
-  cursor: pointer;
-}
-
 .sphereConnectorOverlay {
   position: absolute;
   inset: 0;
@@ -2361,33 +2356,25 @@
   opacity: 0.6;
 }
 
-.sphereTopicLabel {
-  position: absolute;
-  transform: translate(-50%, -50%) translateY(4px);
+/* Légende permanente des sujets, au-dessus de la sphère (remplace le badge
+   flottant au survol — voir le commentaire dans articles-sphere.tsx). */
+.sphereTopicLegend {
   display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--sy-space-8) var(--sy-space-16);
+  margin-bottom: var(--sy-space-4);
+}
+
+.sphereTopicLegendItem {
+  display: inline-flex;
   align-items: center;
   gap: var(--sy-space-6);
   font-family: var(--font-mono);
-  font-size: var(--sy-size-11);
+  font-size: var(--sy-size-10-5);
   letter-spacing: var(--sy-tracking-wide);
   text-transform: uppercase;
-  color: var(--ink);
-  white-space: nowrap;
-  background: var(--sy-header-bg);
-  backdrop-filter: blur(var(--sy-glass-blur));
-  -webkit-backdrop-filter: blur(var(--sy-glass-blur));
-  border: var(--sy-border-width) solid var(--line);
-  padding: 6px 12px;
-  border-radius: var(--sy-radius-full);
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.28s ease, transform 0.28s ease;
-  z-index: 2;
-}
-
-.sphereTopicLabelShow {
-  opacity: 1;
-  transform: translate(-50%, -50%);
+  color: var(--ink-mid);
 }
 
 .sphereLegend {
@@ -2397,8 +2384,27 @@
   color: var(--ink-dim);
 }
 
+/* Pulsation (respiration) de la sphère centrale elle-même — distincte de
+   celle des grains, plus marquée puisqu'elle porte l'identité de la vue. */
+.sphereBreathing {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: sphereBreathe 4.2s ease-in-out infinite;
+}
+
+@keyframes sphereBreathe {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.055);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .sphereRingAnim {
+  .sphereRingAnim,
+  .sphereBreathing {
     animation: none;
   }
 }
