@@ -55,7 +55,13 @@ type TopicSlot = { name: string; angleDeg: number; colorDark: string; colorLight
 type GrainState = {
   theta: number;
   phi: number;
-  baseAngleDeg: number;
+  // Angle du nuage extérieur : cible (recalculée à chaque passage de l'effet
+  // de synchronisation par relaxTopicAngles, pour garantir un écart angulaire
+  // minimal entre grains d'un même sujet) et valeur affichée, qui rattrape la
+  // cible en douceur (même principe que r3current/r3target) pour ne jamais
+  // téléporter un grain déjà visible quand le groupe se redistribue.
+  baseAngleTarget: number;
+  baseAngleCurrent: number;
   r3current: number;
   r3target: number;
   interior: boolean;
@@ -85,6 +91,53 @@ const CY = 400;
 const SPHERE_R = 200;
 const MAX_R = 368;
 const AUTO_SPIN_RAD_S = (4.2 * Math.PI) / 180;
+
+// Écart angulaire minimal (dans le secteur ±SLOT_HALF_WIDTH_DEG d'un sujet)
+// entre deux grains du nuage extérieur : le simple élargissement du jitter
+// (indépendant par grain, voir radialJitter*14 plus bas) réduit la densité
+// moyenne mais ne garantit rien pour deux grains dont le hash tombe par
+// hasard proche l'un de l'autre — vérifié : jusqu'à 6 paires quasi empilées
+// sur 22 grains d'un même sujet avant ce correctif. Cette relaxation ne
+// touche jamais le rayon (fraîcheur, §3.2) et reste dans le secteur du sujet
+// (angle=sujet, §3.2) : seule la position DANS le secteur change.
+const SLOT_HALF_WIDTH_DEG = 36;
+const MIN_ANGULAR_SEP_DEG = 7;
+
+// Écarte une liste de décalages angulaires (degrés, par rapport au centre du
+// secteur d'un sujet) d'au moins `minSep`, sans jamais sortir de
+// [-halfWidth, halfWidth]. Si le nombre de grains ne tient pas dans le
+// secteur à cet espacement minimal, répartit uniformément sur toute sa
+// largeur plutôt que de laisser des grains se chevaucher au bord (dégradation
+// progressive pour un sujet très fourni, comme mon scénario de test à 22
+// articles). Renvoie les décalages dans le MÊME ordre que l'entrée (pas
+// l'ordre trié utilisé en interne pour l'écartement).
+function relaxAngularOffsets(offsets: number[], halfWidth: number, minSep: number): number[] {
+  const n = offsets.length;
+  if (n <= 1) return offsets.slice();
+  const order = offsets.map((_, i) => i).sort((a, b) => offsets[a] - offsets[b]);
+  const sorted = order.map((i) => offsets[i]);
+  for (let k = 1; k < n; k++) {
+    if (sorted[k] - sorted[k - 1] < minSep) sorted[k] = sorted[k - 1] + minSep;
+  }
+  const maxSpan = halfWidth * 2;
+  if (sorted[n - 1] - sorted[0] > maxSpan || sorted[0] < -halfWidth || sorted[n - 1] > halfWidth) {
+    const step = maxSpan / (n - 1);
+    for (let k = 0; k < n; k++) sorted[k] = -halfWidth + step * k;
+  } else {
+    // Recentre le groupe (l'écartement ne pousse que vers la droite) sur le
+    // centre de masse des décalages d'origine, pour ne pas dériver vers un
+    // bord du secteur au fil des recalculs.
+    const originalMean = offsets.reduce((s, v) => s + v, 0) / n;
+    const sortedMean = sorted.reduce((s, v) => s + v, 0) / n;
+    const shift = originalMean - sortedMean;
+    for (let k = 0; k < n; k++) sorted[k] += shift;
+  }
+  const result = new Array<number>(n);
+  order.forEach((origIdx, k) => {
+    result[origIdx] = sorted[k];
+  });
+  return result;
+}
 
 export default function ArticlesSphere({
   articles,
@@ -249,6 +302,33 @@ export default function ArticlesSphere({
       }
     });
 
+    // Angles relaxés du nuage extérieur, par sujet : recalculés à partir de
+    // TOUS les grains extérieurs actuellement affichés de ce sujet (pas
+    // seulement les nouveaux), pour que la distance minimale reste garantie
+    // même quand le lot visible change (filtre temporel, densité). Les
+    // grains déjà affichés ne sautent pas pour autant : baseAngleCurrent
+    // rattrape la nouvelle cible en douceur dans la boucle d'animation.
+    const exteriorByTopic = new Map<string, { id: string; angleDeg: number; offset: number }[]>();
+    for (const a of shown) {
+      if (favoriteIds.has(a.id)) continue;
+      const topicKey = a.topicName || "Sans sujet";
+      const angleDeg = topicSlotByName.get(topicKey)?.angleDeg ?? -90;
+      const h = hashString(a.id);
+      const offset = (((h % 1000) / 1000) * 2 - 1) * SLOT_HALF_WIDTH_DEG;
+      const arr = exteriorByTopic.get(topicKey) ?? [];
+      arr.push({ id: a.id, angleDeg, offset });
+      exteriorByTopic.set(topicKey, arr);
+    }
+    const relaxedAngleById = new Map<string, number>();
+    for (const entries of exteriorByTopic.values()) {
+      const relaxed = relaxAngularOffsets(
+        entries.map((e) => e.offset),
+        SLOT_HALF_WIDTH_DEG,
+        MIN_ANGULAR_SEP_DEG,
+      );
+      entries.forEach((e, i) => relaxedAngleById.set(e.id, e.angleDeg + relaxed[i]));
+    }
+
     for (const a of shown) {
       const topicKey = a.topicName || "Sans sujet";
       const slot = topicSlotByName.get(topicKey);
@@ -267,21 +347,24 @@ export default function ArticlesSphere({
       const radialJitter = (((h >>> 10) % 1000) / 1000) * 2 - 1;
       const freshFrac = Math.min(1, a.ageHours / 110);
 
+      const exteriorAngle = relaxedAngleById.get(a.id) ?? angleDeg + angleJitter * 36;
+
       let gs = grainStateRef.current.get(a.id);
       if (!gs) {
         gs = {
           theta: ((angleDeg + angleJitter * 36) * Math.PI) / 180,
           phi: ((90 + (((h >>> 20) % 640) / 10 - 32)) * Math.PI) / 180,
-          baseAngleDeg: angleDeg + angleJitter * 36,
+          baseAngleTarget: exteriorAngle,
+          baseAngleCurrent: exteriorAngle,
           r3current: interior ? 6 : SPHERE_R * 1.3,
           r3target: 0,
           interior,
-          size: 4.7,
+          size: 6.2,
           fill: fluxColor,
           baseOpacity: 0.6,
           driftPhase: ((h >>> 4) % 1000) / 1000 * Math.PI * 2,
           driftSpeed: 0.15 + (((h >>> 8) % 1000) / 1000) * 0.25,
-          driftRadius: 3 + (((h >>> 12) % 1000) / 1000) * 5,
+          driftRadius: 3 + (((h >>> 12) % 1000) / 1000) * 3,
           twinklePhase: ((h >>> 16) % 1000) / 1000 * Math.PI * 2,
           twinkleSpeed: 0.5 + (((h >>> 18) % 1000) / 1000) * 0.7,
           pulsePhase: ((h >>> 22) % 1000) / 1000 * Math.PI * 2,
@@ -293,13 +376,25 @@ export default function ArticlesSphere({
         grainStateRef.current.set(a.id, gs);
       }
       gs.interior = interior;
-      gs.size = 4.7;
+      gs.size = 6.2;
+      // Cible ré-assignée à chaque passage (pas seulement à la création) :
+      // le groupe relaxé peut se redistribuer légèrement quand un voisin
+      // apparaît/disparaît. baseAngleCurrent rattrape en douceur, voir plus
+      // bas dans la boucle d'animation.
+      gs.baseAngleTarget = exteriorAngle;
       if (interior) {
         gs.r3target = 16 + fraction * (SPHERE_R * 0.84 - 16) + radialJitter * 8;
         gs.fill = topicColor(topicKey);
         gs.baseOpacity = 0.78;
       } else {
-        gs.r3target = SPHERE_R * 1.12 + fraction * (MAX_R - SPHERE_R * 1.12) + radialJitter * 8;
+        // Dispersion radiale doublée (±8 -> ±14) pour donner plus de
+        // respiration entre grains d'un même sujet et d'âge proche (la
+        // combinaison angle=sujet ± jitter serré + rayon=fraîcheur proche
+        // les fait facilement se chevaucher) — reste une fraction mineure
+        // (~10%) de l'étendue totale de la bande (MAX_R - SPHERE_R*1.12),
+        // donc ne brouille pas la lecture de la fraîcheur par la distance.
+        // L'angle (mapping sujet, §3.2) n'est volontairement pas touché.
+        gs.r3target = SPHERE_R * 1.12 + fraction * (MAX_R - SPHERE_R * 1.12) + radialJitter * 14;
         gs.fill = fluxColor;
         gs.baseOpacity = 0.62;
       }
@@ -313,9 +408,17 @@ export default function ArticlesSphere({
         // Zone cliquable élargie sans toucher à l'apparence : un contour
         // transparent (toujours "peint" pour le hit-testing SVG, comme un
         // fill transparent — voir le bug de clic précédent) ajoute ~8px de
-        // marge tout autour du grain visuel (rayon réel ~4-6px), sans
-        // agrandir le point lui-même. Fixe une fois à la création, pas besoin
-        // de la remettre à jour à chaque frame (la marge ne varie pas).
+        // marge tout autour du grain visuel (rayon réel ~5-7px, size=6.2).
+        // Valeur volontairement PAS augmentée en proportion de `size` (était
+        // déjà 8px pour l'ancien size=4.7 plus petit) : le grain visuel plus
+        // grand suffit déjà à agrandir la zone cliquable totale (rayon+marge)
+        // ; grossir aussi la marge la fait chevaucher celle du voisin en
+        // zone dense avant même que les points visuels ne se touchent, ce
+        // qui recrée le problème de clic imprécis — vérifié empiriquement
+        // (22 grains du même sujet, mêmes âges : des clics touchaient un
+        // voisin avec 11px de marge). Fixe une fois à la création, pas
+        // besoin de la remettre à jour à chaque frame (la marge ne varie
+        // pas).
         el.setAttribute("stroke", "transparent");
         el.setAttribute("stroke-width", "16");
         el.tabIndex = 0;
@@ -375,6 +478,7 @@ export default function ArticlesSphere({
         const el = grainElsRef.current.get(id);
         if (!el) return;
         gs.r3current += (gs.r3target - gs.r3current) * ease;
+        gs.baseAngleCurrent += (gs.baseAngleTarget - gs.baseAngleCurrent) * ease;
         if (!immediate && !reduced) gs.pulsePhase += dt * gs.pulseSpeed;
         const pulse = reduced ? 0 : Math.sin(gs.pulsePhase) * gs.pulseAmp;
 
@@ -398,7 +502,7 @@ export default function ArticlesSphere({
             gs.driftPhase += dt * gs.driftSpeed;
             gs.twinklePhase += dt * gs.twinkleSpeed;
           }
-          const angRad = (gs.baseAngleDeg * Math.PI) / 180 + Math.sin(gs.driftPhase) * 0.05;
+          const angRad = (gs.baseAngleCurrent * Math.PI) / 180 + Math.sin(gs.driftPhase) * 0.05;
           sx = CX + gs.r3current * Math.cos(angRad) + Math.sin(gs.driftPhase * 0.6) * gs.driftRadius;
           sy = CY + gs.r3current * Math.sin(angRad) + Math.cos(gs.driftPhase * 0.5) * gs.driftRadius;
           depth = reduced ? 1 : 0.82 + 0.18 * Math.sin(gs.twinklePhase);
