@@ -600,9 +600,16 @@ export default function ArticlesSphere({
             <ellipse cx={CX} cy={CY} rx={SPHERE_R} ry={SPHERE_R * 0.35} fill="none" stroke={isLight ? "#534AB7" : "#5dcaa5"} strokeWidth="0.4" opacity="0.28" />
             <ellipse cx={CX} cy={CY} rx={SPHERE_R * 0.35} ry={SPHERE_R} fill="none" stroke={isLight ? "#534AB7" : "#5dcaa5"} strokeWidth="0.4" opacity="0.28" />
 
-            <g ref={grainLayerRef} />
-            <circle ref={selectionRingRef} r="0" cx={CX} cy={CY} fill="none" stroke={isLight ? "#534AB7" : "#8b7cf6"} strokeWidth="1.4" className={styles.sphereRing} style={{ display: "none" }} />
-
+            {/* Cercles invisibles de survol des nébuleuses : DOIVENT rester
+                sous le calque de grains (<g ref={grainLayerRef}>) dans l'ordre
+                du DOM. Un fill="transparent" reste cliquable en SVG (contrairement
+                à fill="none"), donc s'ils passaient au-dessus, ils intercepteraient
+                silencieusement le clic sur tout grain situé dans leur rayon —
+                c'est-à-dire la quasi-totalité des grains du flux extérieur, dont
+                la bande (SPHERE_R×1.12 à MAX_R) chevauche largement leur rayon de
+                105 centré à distance 300 du centre. Bug vécu : clic sur un grain
+                sans effet, sans erreur console (l'élément touché n'a pas de
+                onClick). */}
             {topicSlots.map((slot) => {
               const ang = (slot.angleDeg * Math.PI) / 180;
               const nx = CX + 300 * Math.cos(ang);
@@ -619,6 +626,9 @@ export default function ArticlesSphere({
                 />
               );
             })}
+
+            <g ref={grainLayerRef} />
+            <circle ref={selectionRingRef} r="0" cx={CX} cy={CY} fill="none" stroke={isLight ? "#534AB7" : "#8b7cf6"} strokeWidth="1.4" className={styles.sphereRing} style={{ display: "none" }} />
           </svg>
 
           <svg ref={connectorRef} className={styles.sphereConnectorOverlay} aria-hidden="true" />
