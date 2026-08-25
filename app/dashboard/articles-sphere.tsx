@@ -169,6 +169,19 @@ const AUTO_SPIN_RAD_S = (4.2 * Math.PI) / 180;
 // de survol, espacement (placeExteriorGrains) — rien d'autre n'est touché.
 const MIN_RENDERED_RADIUS = 6;
 
+// Cible tactile minimale (Apple HIG / WCAG 2.5.5 : 44px). La marge cliquable
+// des grains (stroke-width transparent, voir sa création plus bas) était une
+// constante fixe en unités du viewBox (16), donc sa taille RÉELLE à l'écran
+// dépendait entièrement de la largeur affichée du conteneur — correcte sur
+// desktop (.sphereContainer jusqu'à 760px, ~0,95px réel/unité) mais bien trop
+// petite sur smartphone (.sphereContainer descend à 320px, ~0,4px réel/unité :
+// la même marge de 16 unités tombait alors autour de 6-7px réels, très en
+// dessous du seuil tactile). Recalculée dynamiquement (recomputeHitStrokeWidth,
+// voir plus bas) à partir de la taille réellement rendue du conteneur, jamais
+// en dessous de MIN_HIT_STROKE (la valeur desktop d'origine, jamais réduite).
+const HIT_TARGET_PX = 44;
+const MIN_HIT_STROKE = 16;
+
 // AVANT : secteur angulaire fixe ±36° (72° au total) quel que soit le nombre
 // de sujets réels — gâchait presque toute la place disponible avec 1-3
 // sujets (jusqu'à 360° dispo par sujet), et débordait déjà sur le secteur du
@@ -491,6 +504,11 @@ export default function ArticlesSphere({
   const grainLayerRef = useRef<SVGGElement>(null);
   const grainElsRef = useRef<Map<string, SVGCircleElement>>(new Map());
   const grainStateRef = useRef<Map<string, GrainState>>(new Map());
+  // Marge cliquable courante (unités du viewBox), recalculée à partir de la
+  // taille réelle affichée du conteneur — voir HIT_TARGET_PX plus haut et
+  // recomputeHitStrokeWidth plus bas. Valeur de départ = MIN_HIT_STROKE
+  // (comportement desktop d'origine) le temps de la première mesure.
+  const hitStrokeWidthRef = useRef(MIN_HIT_STROKE);
   const selectionRingRef = useRef<SVGCircleElement>(null);
   const connectorRef = useRef<SVGSVGElement>(null);
   const connectorLineRef = useRef<SVGLineElement | null>(null);
@@ -702,20 +720,22 @@ export default function ArticlesSphere({
         el.setAttribute("opacity", "0");
         // Zone cliquable élargie sans toucher à l'apparence : un contour
         // transparent (toujours "peint" pour le hit-testing SVG, comme un
-        // fill transparent — voir le bug de clic précédent) ajoute ~8px de
-        // marge tout autour du grain visuel (rayon réel ~5-7px, size=6.2).
-        // Valeur volontairement PAS augmentée en proportion de `size` (était
-        // déjà 8px pour l'ancien size=4.7 plus petit) : le grain visuel plus
-        // grand suffit déjà à agrandir la zone cliquable totale (rayon+marge)
-        // ; grossir aussi la marge la fait chevaucher celle du voisin en
-        // zone dense avant même que les points visuels ne se touchent, ce
-        // qui recrée le problème de clic imprécis — vérifié empiriquement
-        // (22 grains du même sujet, mêmes âges : des clics touchaient un
-        // voisin avec 11px de marge). Fixe une fois à la création, pas
-        // besoin de la remettre à jour à chaque frame (la marge ne varie
-        // pas).
+        // fill transparent — voir le bug de clic précédent) ajoute une marge
+        // tout autour du grain visuel (rayon réel ~5-7px, size=6.2). Marge
+        // exprimée en unités du viewBox mais calculée pour viser un diamètre
+        // cliquable réel constant (HIT_TARGET_PX) quelle que soit la taille
+        // affichée du conteneur — voir recomputeHitStrokeWidth plus bas :
+        // fixe à 16 unités, elle donnait ~8px réels sur desktop (conteneur
+        // large) mais à peine 6-7px sur smartphone (conteneur étroit,
+        // .sphereContainer descend à 320px), largement sous le seuil tactile.
+        // hitStrokeWidthRef.current est déjà à jour à ce stade (mesuré au
+        // montage, avant que les grains ne soient créés) ; remise à jour sur
+        // TOUS les grains existants si le conteneur change de taille
+        // (redimensionnement, rotation d'écran), voir le ResizeObserver plus
+        // bas — donc pas besoin de la remettre à jour ici à chaque frame,
+        // seulement à la création.
         el.setAttribute("stroke", "transparent");
-        el.setAttribute("stroke-width", "16");
+        el.setAttribute("stroke-width", hitStrokeWidthRef.current.toFixed(2));
         el.tabIndex = 0;
         el.setAttribute("role", "button");
         el.addEventListener("click", () => setSelectedId(a.id));
@@ -1045,6 +1065,48 @@ export default function ArticlesSphere({
       ring.style.display = "none";
     }
   }, [selectedId, reducedMotion]);
+
+  // --- Zone cliquable responsive des grains -------------------------------
+  // .sphereContainer va de 320px (petit smartphone) à 760px (desktop) pour
+  // représenter le même viewBox 800×800 (voir dashboard.module.css) : le
+  // nombre de pixels réels par unité de viewBox varie donc du simple au
+  // double+ selon l'écran. Une marge cliquable fixe en unités du viewBox
+  // (l'ancien stroke-width="16") donnait donc un diamètre cliquable réel très
+  // inégal — confortable sur desktop, sous le seuil tactile sur mobile.
+  // Mesurée ici via getBoundingClientRect (même technique que le calcul de
+  // rect pour la conversion pointeur → viewBox plus bas dans ce fichier) et
+  // réappliquée à TOUS les grains déjà créés (grainElsRef), pas seulement aux
+  // futurs — un ResizeObserver déclenche le recalcul à chaque changement de
+  // taille du conteneur (redimensionnement de fenêtre, rotation d'écran).
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    function recomputeHitStrokeWidth() {
+      const rect = container!.getBoundingClientRect();
+      if (rect.width <= 0) return;
+      // .sphereContainer a aspect-ratio: 1/1 (toujours carré), donc width et
+      // height donnent la même échelle : un seul ratio suffit.
+      const pxPerUnit = rect.width / 800;
+      const desiredDiameterUnits = HIT_TARGET_PX / pxPerUnit;
+      // Le contour ajoute stroke-width de part et d'autre du bord du cercle
+      // dessiné : diamètre cliquable total = 2 × rayon dessiné + stroke-width.
+      // MIN_RENDERED_RADIUS (pas gs.size, qui peut être plus grand en cas de
+      // pulsation) donne le plancher garanti, jamais le maximum ponctuel —
+      // cible atteinte ou dépassée à tout instant, jamais juste à la limite.
+      const needed = desiredDiameterUnits - 2 * MIN_RENDERED_RADIUS;
+      const next = Math.max(MIN_HIT_STROKE, needed);
+      if (Math.abs(next - hitStrokeWidthRef.current) < 0.1) return;
+      hitStrokeWidthRef.current = next;
+      const strokeAttr = next.toFixed(2);
+      grainElsRef.current.forEach((el) => el.setAttribute("stroke-width", strokeAttr));
+    }
+
+    recomputeHitStrokeWidth();
+    const ro = new ResizeObserver(recomputeHitStrokeWidth);
+    ro.observe(container);
+    return () => ro.disconnect();
+  }, []);
 
   // --- Glisser-déposer (rotation) et molette (zoom) -----------------------
   useEffect(() => {
