@@ -203,6 +203,22 @@ const GRAIN_RADIUS_MAX = GRAIN_RADIUS_MIN * 10;
 const GRAIN_PACKING_EFFICIENCY = 0.5;
 const GRAIN_SAFETY_MARGIN = 4;
 
+// Étirement horizontal du nuage extérieur (demande explicite : utiliser
+// plus de largeur d'écran sans agrandir la sphère elle-même, qui doit
+// rester ronde). Le placement des grains extérieurs (angle + rayon,
+// searchBestPlacement) reste un calcul purement circulaire, INCHANGÉ — cet
+// étirement n'intervient qu'à la toute dernière étape, la conversion en
+// position d'écran (x,y), en multipliant uniquement l'écart horizontal au
+// centre (jamais l'écart vertical, jamais la sphère intérieure elle-même,
+// qui a son propre code de rendu 3D séparé, plus bas, non affecté). Le
+// nuage devient ainsi une ellipse plus large que haute, pas un cercle plus
+// grand — sans jamais recalculer l'anti-chevauchement, qui reste valide
+// puisqu'un étirement horizontal ne peut qu'AUGMENTER l'écart réel entre
+// deux grains, jamais le réduire. Appliqué de façon identique partout où
+// une position de grain extérieur est calculée (rendu, survol, nébuleuses)
+// pour que tout reste visuellement cohérent entre ces trois usages.
+const EXTERIOR_X_STRETCH = 1.4;
+
 // Cible tactile minimale (Apple HIG / WCAG 2.5.5 : 44px). La marge cliquable
 // des grains (stroke-width transparent, voir sa création plus bas) était une
 // constante fixe en unités du viewBox (16), donc sa taille RÉELLE à l'écran
@@ -938,9 +954,10 @@ export default function ArticlesSphere({
           const tangentialDrift = Math.sin(gs.driftPhase) * gs.driftRadius;
           sx =
             CX +
-            gs.r3current * Math.cos(angRad) -
-            Math.sin(angRad) * tangentialDrift +
-            Math.sin(gs.driftPhase * 0.6) * gs.driftRadius;
+            (gs.r3current * Math.cos(angRad) -
+              Math.sin(angRad) * tangentialDrift +
+              Math.sin(gs.driftPhase * 0.6) * gs.driftRadius) *
+              EXTERIOR_X_STRETCH;
           sy =
             CY +
             gs.r3current * Math.sin(angRad) +
@@ -1043,7 +1060,13 @@ export default function ArticlesSphere({
             hy = gs.lastY;
           } else {
             const rad = (gs.baseAngleCurrent * Math.PI) / 180;
-            hx = CX + gs.r3current * Math.cos(rad);
+            // Même étirement horizontal qu'à l'affichage (EXTERIOR_X_STRETCH,
+            // voir la boucle de rendu plus haut) : sans lui, la zone de
+            // survol resterait sur l'ancienne position circulaire alors que
+            // le grain est visuellement affiché plus loin sur les côtés
+            // (nuage étiré) — le survol raterait alors le grain à chaque
+            // fois pour les grains excentrés horizontalement.
+            hx = CX + gs.r3current * Math.cos(rad) * EXTERIOR_X_STRETCH;
             hy = CY + gs.r3current * Math.sin(rad);
           }
           const d = Math.hypot(hx - pos.x, hy - pos.y);
@@ -1426,7 +1449,13 @@ export default function ArticlesSphere({
                   const baseOpacity = (0.13 + (((h >>> 4) % 1000) / 1000) * 0.11) * opacityMul;
                   const ang = ((slot.angleDeg + angleOff) * Math.PI) / 180;
                   const rad = 300 + radiusOff;
-                  const nx = CX + rad * Math.cos(ang);
+                  // Même étirement horizontal que le nuage de grains
+                  // (EXTERIOR_X_STRETCH) : sans lui, ces halos resteraient
+                  // sur l'ancienne disposition circulaire pendant que les
+                  // grains qu'ils sont censés entourer se répandent plus
+                  // loin sur les côtés — décalage visuel entre le halo et
+                  // son nuage de points.
+                  const nx = CX + rad * Math.cos(ang) * EXTERIOR_X_STRETCH;
                   const ny = CY + rad * Math.sin(ang);
                   return (
                     <circle
