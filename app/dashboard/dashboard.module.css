@@ -2582,12 +2582,24 @@
    via le padding de son propre conteneur parent. Ici, seule au fil de la
    page, elle a besoin de son propre padding — mêmes 28px que .footer, pour
    un alignement visuel cohérent avec les liens juste en dessous. */
+/* margin-top calculé sur le PIRE CAS de débordement des grains (demande
+   explicite : garder les points x10, pousser la légende/footer plutôt que
+   couper ou réduire) : rayon max d'un grain (GRAIN_RADIUS_MAX = 60, voir
+   articles-sphere.tsx) + décalage aléatoire radial max (22) + bord externe
+   du nuage extérieur (maxR = 650, sphereGap par défaut) = jusqu'à 732
+   unités du viewBox depuis le centre, sur un total de 400 unités de
+   demi-largeur — soit jusqu'à ~315px de débordement réel sur un conteneur
+   large (.sphereContainer peut aller jusqu'à 760px, voir son clamp()).
+   320px de marge couvre ce pire cas avec une petite réserve ; sur les
+   conteneurs plus étroits (mobile), l'écart réel est plus petit mais la
+   marge reste la même (compromis simple, pas de mesure dynamique). */
 .sphereLegend {
   text-align: center;
   font-family: var(--font-mono);
   font-size: var(--sy-size-10-5);
   color: var(--ink-dim);
   padding: var(--sy-space-8) 28px 0;
+  margin-top: 320px;
 }
 
 /* Pulsation (respiration) de la sphère centrale elle-même — distincte de
