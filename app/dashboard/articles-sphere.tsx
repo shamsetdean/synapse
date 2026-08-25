@@ -159,6 +159,15 @@ const SPHERE_R = 200;
 // vers l'extérieur, sans la compresser.
 const DEFAULT_BAND_WIDTH = 154;
 const AUTO_SPIN_RAD_S = (4.2 * Math.PI) / 180;
+// Rayon RENDU minimal (unités du viewBox) : avec la taille d'étoile
+// verrouillée à 1, le rayon réel affiché tombait sous 1 unité — proche de
+// l'échelle du conteneur (~0,93px réel/unité près du plafond, moins sur un
+// écran plus petit), donc sous le seuil de rendu net d'un écran, rendu
+// quasi invisible par l'anti-crénelage. Ce plancher ne s'applique qu'au
+// rayon effectivement dessiné (l'attribut `r`) : `gs.size` (la valeur
+// "taille des étoiles" configurée) reste inchangé pour tout le reste — zone
+// de survol, espacement (placeExteriorGrains) — rien d'autre n'est touché.
+const MIN_RENDERED_RADIUS = 2.5;
 
 // AVANT : secteur angulaire fixe ±36° (72° au total) quel que soit le nombre
 // de sujets réels — gâchait presque toute la place disponible avec 1-3
@@ -804,7 +813,10 @@ export default function ArticlesSphere({
           sx = CX + x1;
           sy = CY + y2;
           depth = (z2 + SPHERE_R) / (2 * SPHERE_R);
-          el.setAttribute("r", (gs.size * (0.72 + 0.32 * depth) * (1 + pulse)).toFixed(2));
+          el.setAttribute(
+            "r",
+            Math.max(MIN_RENDERED_RADIUS, gs.size * (0.72 + 0.32 * depth) * (1 + pulse)).toFixed(2),
+          );
         } else {
           if (!immediate && !reduced) {
             gs.driftPhase += dt * gs.driftSpeed;
@@ -834,7 +846,7 @@ export default function ArticlesSphere({
             Math.cos(angRad) * tangentialDrift +
             Math.cos(gs.driftPhase * 0.5) * gs.driftRadius;
           depth = reduced ? 1 : 0.82 + 0.18 * Math.sin(gs.twinklePhase);
-          el.setAttribute("r", (gs.size * (1 + pulse)).toFixed(2));
+          el.setAttribute("r", Math.max(MIN_RENDERED_RADIUS, gs.size * (1 + pulse)).toFixed(2));
         }
         el.setAttribute("cx", sx.toFixed(2));
         el.setAttribute("cy", sy.toFixed(2));
