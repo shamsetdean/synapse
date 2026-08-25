@@ -2277,9 +2277,20 @@
   background: rgba(20, 20, 26, 0.2);
 }
 
+/* pointer-events: auto retiré (demande explicite, corrige un bug de
+   clignotement) : ce voile plein écran (position: fixed; inset: 0) était
+   destiné à fermer le panneau au clic à côté, pertinent quand l'ouverture
+   se faisait au CLIC. Mais depuis que le panneau s'ouvre ET se ferme AU
+   SURVOL (articles-sphere.tsx), ce voile actif interceptait la souris
+   au-dessus de la sphère dès l'ouverture du panneau — coupant aussitôt le
+   survol en cours, ce qui refermait le panneau, révélait la sphère,
+   redéclenchait le survol sur la même étoile, rouvrait le panneau... une
+   boucle de clignotement continue. Le survol sorti fermant déjà le
+   panneau, l'interception de clic du voile est devenue redondante : gardé
+   uniquement pour l'effet visuel d'assombrissement (opacity), plus pour
+   intercepter quoi que ce soit. */
 .detailScrimOpen {
   opacity: 1;
-  pointer-events: auto;
 }
 
 .detailPanel {
