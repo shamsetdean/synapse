@@ -618,6 +618,16 @@ export default function ArticlesSphere({
   // (voir plus bas), pointermove doit alors déclencher le calcul lui-même
   // pour que le curseur suive quand même la souris.
   const updateHoverCursorRef = useRef<() => void>(() => {});
+  // Délai anti-flicker avant de refermer le panneau de détail sur une perte
+  // de survol (voir son usage dans updateHoverCursor plus bas) : la simple
+  // OUVERTURE du panneau (setSelectedId) déclenche un re-rendu React, qui
+  // peut décaler très légèrement le pointeur par rapport au grain (le
+  // panneau apparaît, la mise en page bouge d'un pixel ou deux) — sans ce
+  // délai, cette perte de survol D'UNE FRAME suffisait à refermer aussitôt
+  // le panneau qui venait tout juste de s'ouvrir (affiché puis reparti
+  // quasi instantanément, perçu comme un bug). L'ouverture, elle, reste
+  // instantanée (aucun délai) : seule la fermeture est temporisée.
+  const selectionCloseTimeoutRef = useRef<number | null>(null);
 
   const selectedIdRef = useRef<string | null>(null);
   useEffect(() => {
@@ -1091,7 +1101,23 @@ export default function ArticlesSphere({
         // refermé quand la souris le quitte (bestId redevient null). Le
         // clic (voir son addEventListener plus haut) reste néanmoins
         // nécessaire pour le tactile, qui n'a pas de survol.
-        setSelectedId(bestId);
+        //
+        // Ouverture instantanée, fermeture temporisée (selectionCloseTimeoutRef,
+        // voir sa déclaration plus haut) : évite le flicker "affiché puis
+        // reparti aussitôt" causé par le re-rendu que l'ouverture elle-même
+        // déclenche.
+        if (selectionCloseTimeoutRef.current !== null) {
+          window.clearTimeout(selectionCloseTimeoutRef.current);
+          selectionCloseTimeoutRef.current = null;
+        }
+        if (bestId) {
+          setSelectedId(bestId);
+        } else {
+          selectionCloseTimeoutRef.current = window.setTimeout(() => {
+            selectionCloseTimeoutRef.current = null;
+            setSelectedId(null);
+          }, 180);
+        }
       }
     }
     updateHoverCursorRef.current = updateHoverCursor;
@@ -1156,6 +1182,9 @@ export default function ArticlesSphere({
     return () => {
       cancelAnimationFrame(raf);
       window.removeEventListener("resize", onResize);
+      if (selectionCloseTimeoutRef.current !== null) {
+        window.clearTimeout(selectionCloseTimeoutRef.current);
+      }
     };
   }, []);
 
