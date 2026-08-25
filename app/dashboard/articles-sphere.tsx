@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "reac
 import type { FeedArticle } from "./article-feed";
 import ArticleDetailPanel from "./article-detail-panel";
 import { TOPIC_PALETTE, hashString, useIsLightTheme, type TopicSlot } from "./topic-colors";
+import { useArticlesControls } from "./dashboard-shell";
 import styles from "./dashboard.module.css";
 
 // Vue sphère de la page Articles (cahier des charges §3). Rendu et animée en
@@ -167,7 +168,40 @@ const AUTO_SPIN_RAD_S = (4.2 * Math.PI) / 180;
 // rayon effectivement dessiné (l'attribut `r`) : `gs.size` (la valeur
 // "taille des étoiles" configurée) reste inchangé pour tout le reste — zone
 // de survol, espacement (placeExteriorGrains) — rien d'autre n'est touché.
-const MIN_RENDERED_RADIUS = 6;
+// Rayon RENDU (unités du viewBox). AVANT : constante fixe (6), plancher
+// anti-sous-pixel uniquement — beaucoup trop petit visuellement et
+// tactilement, signalé à plusieurs reprises. APRÈS (demande explicite :
+// "10 fois plus grandes, interdiction d'être superposées") : rayon
+// ADAPTATIF, recalculé à chaque passage de l'effet de synchronisation
+// (computeGrainRadius plus bas, appelé depuis l'effet) en fonction du
+// nombre réel de grains extérieurs affichés et de la place réellement
+// disponible dans l'anneau du nuage — jamais une taille fixe qui ignorerait
+// combien de grains doivent y tenir.
+//
+// GRAIN_RADIUS_MIN : plancher, identique à l'ancien MIN_RENDERED_RADIUS —
+// jamais plus petit qu'avant, quelle que soit la densité.
+// GRAIN_RADIUS_MAX : plafond, littéralement 10× ce plancher — la demande
+// "10 fois plus grandes" telle quelle, mais seulement ATTEIGNABLE quand peu
+// de grains sont affichés (fenêtre 24H avec peu d'articles, par exemple) :
+// avec 50-90 grains dans l'anneau actuel (cas réel), un rayon de 60 rendrait
+// GÉOMÉTRIQUEMENT impossible de tous les caser sans chevauchement (calcul :
+// anneau ≈ 550 000 unités² à sphereGap/bande par défaut, un disque de rayon
+// 60 occupe ≈ 11 300 unités² ne serait-ce qu'à 50% d'efficacité de
+// remplissage, donc ~12 grains max avant chevauchement garanti — très en
+// dessous de 50-90). Le rayon adaptatif redescend alors automatiquement,
+// jusqu'à GRAIN_RADIUS_MIN si besoin, plutôt que de forcer 10x et de violer
+// l'interdiction de chevauchement, qui prime.
+const GRAIN_RADIUS_MIN = 6;
+const GRAIN_RADIUS_MAX = GRAIN_RADIUS_MIN * 10;
+// Efficacité de remplissage supposée pour l'estimation de capacité de
+// l'anneau (placement séquentiel + passes de réparation, pas un pavage
+// hexagonal parfait à 90.7% — 50% est une estimation prudente, déjà validée
+// empiriquement par le comportement de placeExteriorGrains sur ce type de
+// placement). Marge de sécurité ajoutée à l'écart minimal ciblé entre deux
+// grains (au-delà de 2×rayon, qui les ferait juste se toucher) : évite le
+// cas limite "tangent" (visuellement indiscernable d'un chevauchement).
+const GRAIN_PACKING_EFFICIENCY = 0.5;
+const GRAIN_SAFETY_MARGIN = 4;
 
 // Cible tactile minimale (Apple HIG / WCAG 2.5.5 : 44px). La marge cliquable
 // des grains (stroke-width transparent, voir sa création plus bas) était une
@@ -426,6 +460,22 @@ function placeExteriorGrains(
   return result;
 }
 
+// Plus grand rayon (borné entre GRAIN_RADIUS_MIN et GRAIN_RADIUS_MAX) tel
+// que `exteriorCount` grains de ce rayon aient statistiquement de la place
+// dans l'anneau [exteriorRStart, maxR] sans se chevaucher, à
+// GRAIN_PACKING_EFFICIENCY près. Estimation par AIRE (aire de l'anneau ÷
+// aire occupée par grain), pas une garantie géométrique absolue à elle
+// seule — c'est le couple avec minPixelSep = 2×rayon+marge, réellement
+// imposé à placeExteriorGrains juste après, qui fait tenir la promesse
+// "jamais superposés" pour le nuage extérieur (voir son appel plus bas).
+function computeGrainRadius(exteriorCount: number, exteriorRStart: number, maxR: number): number {
+  if (exteriorCount <= 0) return GRAIN_RADIUS_MAX;
+  const annulusArea = Math.PI * (maxR * maxR - exteriorRStart * exteriorRStart);
+  const areaPerGrain = annulusArea / exteriorCount;
+  const raw = Math.sqrt((GRAIN_PACKING_EFFICIENCY * areaPerGrain) / Math.PI);
+  return Math.max(GRAIN_RADIUS_MIN, Math.min(GRAIN_RADIUS_MAX, raw));
+}
+
 export default function ArticlesSphere({
   visibleArticles,
   topicSlots,
@@ -463,16 +513,18 @@ export default function ArticlesSphere({
   );
 
   // Réglages manuels de l'espacement du nuage extérieur (curseurs rendus
-  // plus bas). starGap = seuil visé pour la distance entre deux grains
-  // (passé à placeExteriorGrains) ; sphereGap = distance entre le bord de
-  // la sphère et le début de la bande de grains. Valeurs par défaut =
-  // celles qui étaient fixes en dur jusqu'ici.
+  // plus bas). sphereGap = distance entre le bord de la sphère et le début
+  // de la bande de grains. starGap (l'ancien seuil de distance entre deux
+  // grains) n'est plus lu ici : remplacé par minPixelSep, dérivé du rayon
+  // adaptatif des grains eux-mêmes (voir computeGrainRadius/GRAIN_RADIUS_MAX
+  // plus haut et son usage plus bas) — une préférence indépendante de la
+  // taille réelle des grains ne pouvait plus garantir l'absence de
+  // chevauchement une fois cette taille devenue adaptative.
   const spacing = useSyncExternalStore(
     subscribeSpacing,
     getSpacingSnapshot,
     getSpacingServerSnapshot,
   );
-  const starGap = spacing.starGap;
   const sphereGap = spacing.sphereGap;
   const starSize = spacing.starSize;
   const exteriorRStart = SPHERE_R + sphereGap;
@@ -504,6 +556,20 @@ export default function ArticlesSphere({
   const grainLayerRef = useRef<SVGGElement>(null);
   const grainElsRef = useRef<Map<string, SVGCircleElement>>(new Map());
   const grainStateRef = useRef<Map<string, GrainState>>(new Map());
+  // Rayon rendu courant (unités du viewBox), recalculé à chaque passage de
+  // l'effet de synchronisation par computeGrainRadius — voir GRAIN_RADIUS_MAX
+  // plus haut. Lu depuis la boucle d'animation (effet séparé), d'où le ref :
+  // même raison que hitStrokeWidthRef juste en dessous.
+  const grainRadiusRef = useRef(GRAIN_RADIUS_MIN);
+  // Écart minimal réellement imposé entre deux grains lors du dernier
+  // placement (2×grainRadiusRef.current + GRAIN_SAFETY_MARGIN à ce
+  // moment-là — voir son calcul dans l'effet de synchronisation). Sert de
+  // PLAFOND à la marge cliquable invisible ci-dessous (recomputeHitStrokeWidth) :
+  // sans ce plafond, une marge cliquable visant 44px réels pourrait à
+  // nouveau dépasser l'écart réel entre grains voisins et les faire se
+  // chevaucher fonctionnellement (un tap sur le mauvais grain) — exactement
+  // le bug déjà rencontré une fois avec l'ancienne version de ce système.
+  const minPixelSepRef = useRef(GRAIN_RADIUS_MIN * 2 + GRAIN_SAFETY_MARGIN);
   // Marge cliquable courante (unités du viewBox), recalculée à partir de la
   // taille réelle affichée du conteneur — voir HIT_TARGET_PX plus haut et
   // recomputeHitStrokeWidth plus bas. Valeur de départ = MIN_HIT_STROKE
@@ -560,6 +626,7 @@ export default function ArticlesSphere({
 
   // Dark/light suivent data-theme sur <html> — voir topic-colors.ts.
   const isLight = useIsLightTheme();
+  const { setSphereLegend } = useArticlesControls();
 
   function topicColor(name: string): string {
     const slot = topicSlotByName.get(name || "Sans sujet");
@@ -636,7 +703,22 @@ export default function ArticlesSphere({
       const homeRadius = exteriorRStart + fraction * (maxR - exteriorRStart) + radialJitter * 22;
       exteriorCandidates.push({ id: a.id, topicAngleDeg, halfWidth, homeOffset, homeRadius });
     }
-    const placedById = placeExteriorGrains(exteriorCandidates, starGap, exteriorRStart, maxR);
+    // Rayon rendu, dérivé du nombre réel de grains extérieurs à caser —
+    // voir computeGrainRadius/GRAIN_RADIUS_MAX plus haut ("10 fois plus
+    // grandes, interdiction d'être superposées"). Calculé ICI (pas
+    // seulement lu) : exteriorCandidates.length vient d'être établi
+    // ci-dessus, c'est la première fois dans le passage où ce nombre est
+    // connu. minPixelSep remplace le curseur starGap (retiré de l'interface,
+    // sa valeur ne reflétait de toute façon aucune notion de taille des
+    // grains) : 2×rayon+marge est l'écart RÉELLEMENT nécessaire pour que
+    // deux disques de ce rayon ne se touchent jamais, pas une préférence
+    // arbitraire — c'est ce qui fait tenir la promesse de non-chevauchement,
+    // pas seulement la taille choisie en elle-même.
+    const grainRadius = computeGrainRadius(exteriorCandidates.length, exteriorRStart, maxR);
+    grainRadiusRef.current = grainRadius;
+    const minPixelSep = grainRadius * 2 + GRAIN_SAFETY_MARGIN;
+    minPixelSepRef.current = minPixelSep;
+    const placedById = placeExteriorGrains(exteriorCandidates, minPixelSep, exteriorRStart, maxR);
 
     for (const a of shown) {
       const topicKey = a.topicName || "Sans sujet";
@@ -769,7 +851,6 @@ export default function ArticlesSphere({
     maxAgeHours,
     cloudDensity,
     isLight,
-    starGap,
     exteriorRStart,
     maxR,
     starSize,
@@ -835,7 +916,7 @@ export default function ArticlesSphere({
           depth = (z2 + SPHERE_R) / (2 * SPHERE_R);
           el.setAttribute(
             "r",
-            Math.max(MIN_RENDERED_RADIUS, gs.size * (0.72 + 0.32 * depth) * (1 + pulse)).toFixed(2),
+            Math.max(grainRadiusRef.current, gs.size * (0.72 + 0.32 * depth) * (1 + pulse)).toFixed(2),
           );
         } else {
           if (!immediate && !reduced) {
@@ -866,7 +947,7 @@ export default function ArticlesSphere({
             Math.cos(angRad) * tangentialDrift +
             Math.cos(gs.driftPhase * 0.5) * gs.driftRadius;
           depth = reduced ? 1 : 0.82 + 0.18 * Math.sin(gs.twinklePhase);
-          el.setAttribute("r", Math.max(MIN_RENDERED_RADIUS, gs.size * (1 + pulse)).toFixed(2));
+          el.setAttribute("r", Math.max(grainRadiusRef.current, gs.size * (1 + pulse)).toFixed(2));
         }
         el.setAttribute("cx", sx.toFixed(2));
         el.setAttribute("cy", sy.toFixed(2));
@@ -1091,11 +1172,27 @@ export default function ArticlesSphere({
       const desiredDiameterUnits = HIT_TARGET_PX / pxPerUnit;
       // Le contour ajoute stroke-width de part et d'autre du bord du cercle
       // dessiné : diamètre cliquable total = 2 × rayon dessiné + stroke-width.
-      // MIN_RENDERED_RADIUS (pas gs.size, qui peut être plus grand en cas de
-      // pulsation) donne le plancher garanti, jamais le maximum ponctuel —
+      // grainRadiusRef.current (pas gs.size, qui peut être plus grand en cas
+      // de pulsation) donne le plancher garanti, jamais le maximum ponctuel —
       // cible atteinte ou dépassée à tout instant, jamais juste à la limite.
-      const needed = desiredDiameterUnits - 2 * MIN_RENDERED_RADIUS;
-      const next = Math.max(MIN_HIT_STROKE, needed);
+      // Le rayon des grains est maintenant lui-même adaptatif, souvent bien
+      // au-dessus de l'ancien plancher fixe — la marge nécessaire pour
+      // atteindre 44px réels peut donc être négative (le grain suffit déjà à
+      // lui seul) : Math.max(0, ...) l'empêche de devenir un stroke-width
+      // négatif, invalide en SVG.
+      const grainRadius = grainRadiusRef.current;
+      const needed = Math.max(0, desiredDiameterUnits - 2 * grainRadius);
+      // PLAFOND (interdiction de chevauchement, priorité absolue sur la
+      // cible de 44px) : la marge ne doit jamais dépasser l'écart RÉEL
+      // laissé entre deux grains voisins par le placement — voir
+      // minPixelSepRef, calculé avec ce même grainRadius dans l'effet de
+      // synchronisation. Au-delà, la zone cliquable d'un grain empiéterait
+      // sur celle de son voisin (un tap pourrait sélectionner le mauvais
+      // article) — le bug déjà rencontré avec l'ancienne version fixe de ce
+      // système, ici rendu structurellement impossible plutôt que réévité au
+      // cas par cas.
+      const leftoverGap = Math.max(0, minPixelSepRef.current - 2 * grainRadius);
+      const next = Math.min(Math.max(MIN_HIT_STROKE, needed), leftoverGap);
       if (Math.abs(next - hitStrokeWidthRef.current) < 0.1) return;
       hitStrokeWidthRef.current = next;
       const strokeAttr = next.toFixed(2);
@@ -1251,6 +1348,24 @@ export default function ArticlesSphere({
   const interiorCount = visibleArticles.filter((a) => favoriteIds.has(a.id)).length;
   const selectedArticle = selectedId ? visibleArticles.find((a) => a.id === selectedId) ?? null : null;
 
+  // Légende ("X en favoris · Y dans le flux affiché · ...") : affichée
+  // juste au-dessus du footer (demande explicite, voir dashboard-shell.tsx)
+  // plutôt que rendue ici. Le TEXTE est calculé ici (seul endroit qui
+  // connaît interiorCount/visibleArticles.length), puis poussé via
+  // setSphereLegend dans un effet — jamais pendant le rendu lui-même
+  // (mettre à jour l'état d'un composant ANCÊTRE, DashboardShell, pendant
+  // le rendu d'un DESCENDANT, ArticlesSphere, déclenche l'avertissement
+  // React "Cannot update a component while rendering a different
+  // component"). Nettoyée au démontage (retour à null) : sans ce nettoyage,
+  // le dernier texte publié resterait affiché même après un passage en vue
+  // Liste ou un changement de page, où ArticlesSphere est démonté (voir le
+  // commentaire "Vue non active démontée" en tête de ce fichier).
+  useEffect(() => {
+    const text = `${interiorCount} en favori${interiorCount > 1 ? "s" : ""} · ${visibleArticles.length} dans le flux affiché · distance au centre = fraîcheur · intérieur/extérieur = favori ou non · glisser pour pivoter, molette pour zoomer`;
+    setSphereLegend(text);
+    return () => setSphereLegend(null);
+  }, [interiorCount, visibleArticles.length, setSphereLegend]);
+
   return (
     <div className={styles.sphereRoot}>
       {/* Tous les curseurs de réglage (distances, taille des étoiles) ont
@@ -1358,11 +1473,6 @@ export default function ArticlesSphere({
 
           <svg ref={connectorRef} className={styles.sphereConnectorOverlay} aria-hidden="true" />
         </div>
-      </div>
-
-      <div className={styles.sphereLegend}>
-        {interiorCount} en favori{interiorCount > 1 ? "s" : ""} · {visibleArticles.length} dans le flux affiché ·
-        distance au centre = fraîcheur · intérieur/extérieur = favori ou non · glisser pour pivoter, molette pour zoomer
       </div>
 
       <ArticleDetailPanel

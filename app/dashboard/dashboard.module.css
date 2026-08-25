@@ -64,10 +64,9 @@
 
 .topbar {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  flex-wrap: wrap;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
   /* Le sélecteur de vue n'habite plus la topbar depuis la structure v2
      (dock flottant, position: fixed en bas d'écran) : plus besoin de
      réserve à droite ni de hauteur minimale calibrée pour un anneau.
@@ -90,6 +89,33 @@
      contexte englobant, qui doit dépasser 50 — pas celui du panneau. */
   z-index: 55;
   box-sizing: border-box;
+}
+
+/* Rangée logo/profil : c'était le layout de .topbar avant que la bascule
+   Sphère/Liste et le cadran de fraîcheur n'y soient ajoutés en dessous
+   (demande explicite : ces contrôles doivent apparaître sous le profil,
+   au-dessus de la ligne de séparation de .topbar — donc DANS la topbar,
+   pas dans le bandeau d'ArticlesView plus bas). .topbar est passé en
+   colonne pour empiler les deux rangées ; cette classe porte l'ancien
+   agencement horizontal (logo à gauche, profil à droite). */
+.topbarRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+/* Deuxième rangée de la topbar : bascule Sphère/Liste + cadran de
+   fraîcheur, visible uniquement en vue Articles (voir dashboard-shell.tsx).
+   Reprend l'agencement de l'ancienne .articlesTopBarRight (retirée
+   d'articles-view.tsx), simplement déplacée d'un composant à l'autre. */
+.topbarControls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sy-space-10);
+  flex-wrap: wrap;
 }
 
 .topbarLeft {
@@ -738,13 +764,6 @@
   flex-direction: column;
   gap: var(--sy-space-4);
   min-width: 0;
-}
-
-.articlesTopBarRight {
-  display: flex;
-  align-items: center;
-  gap: var(--sy-space-10);
-  flex-wrap: wrap;
 }
 
 /* .sphereTopicLegend centrait au-dessus de la sphère à l'origine ; la
@@ -2502,11 +2521,18 @@
   color: var(--ink-mid);
 }
 
+/* Déplacée juste au-dessus du footer (demande explicite, voir
+   dashboard-shell.tsx) — n'est plus rendue à l'intérieur de .sphereRoot
+   (articles-sphere.tsx), qui ne lui fournissait la marge horizontale que
+   via le padding de son propre conteneur parent. Ici, seule au fil de la
+   page, elle a besoin de son propre padding — mêmes 28px que .footer, pour
+   un alignement visuel cohérent avec les liens juste en dessous. */
 .sphereLegend {
   text-align: center;
   font-family: var(--font-mono);
   font-size: var(--sy-size-10-5);
   color: var(--ink-dim);
+  padding: var(--sy-space-8) 28px 0;
 }
 
 /* Pulsation (respiration) de la sphère centrale elle-même — distincte de
@@ -2535,8 +2561,9 @@
 }
 
 /* Bascule Sphère/Liste — même langage visuel que .ageFilterPill(s). Vit
-   désormais dans .articlesTopBarRight (articles-view.tsx), plus sur sa
-   propre rangée pleine largeur (voir .articlesTopBar). */
+   désormais dans .topbarControls (dashboard-shell.tsx), dans le bandeau du
+   haut, plus dans .articlesTopBarRight/ArticlesView (déménagée, demande
+   explicite). */
 .viewToggle {
   display: flex;
   gap: var(--sy-space-2);

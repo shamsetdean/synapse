@@ -255,7 +255,6 @@ export default async function DashboardPage() {
           sortBy={preferences.sortBy}
           density={preferences.density}
           visibleFields={preferences.visibleFields}
-          defaultView={preferences.defaultView}
           cloudDensity={preferences.cloudDensity}
         />
       )}
@@ -299,6 +298,7 @@ export default async function DashboardPage() {
         dashboardSection={dashboardSection}
         articlesSection={articlesSection}
         configSection={configSection}
+        defaultView={preferences.defaultView}
       />
     </main>
   );
