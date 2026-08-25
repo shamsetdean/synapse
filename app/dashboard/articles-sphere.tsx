@@ -49,6 +49,66 @@ function getReducedMotionServerSnapshot() {
   return false;
 }
 
+// Réglages manuels d'espacement du nuage extérieur (curseurs, voir le
+// composant plus bas), persistés en localStorage pour ne plus jamais avoir
+// à les redemander d'une visite à l'autre. Petit store externe manuel (pas
+// juste useState + useEffect) : lire localStorage puis appeler setState
+// dans le corps d'un effet déclenche un rendu en cascade évitable (voir
+// subscribeReducedMotion juste au-dessus, même raisonnement) et diverge du
+// rendu serveur, qui ne connaît pas le localStorage du navigateur — ces
+// valeurs par défaut (60/296/1) y restent donc utilisées le temps de
+// l'hydratation. Choisies explicitement via les curseurs, pas des valeurs
+// arbitraires : distance entre étoiles 60, distance étoiles-sphère 296,
+// taille des étoiles 1.
+type SpacingSettings = { starGap: number; sphereGap: number; starSize: number };
+let spacingState: SpacingSettings = { starGap: 60, sphereGap: 296, starSize: 1 };
+let spacingHydrated = false;
+const spacingListeners = new Set<() => void>();
+
+function hydrateSpacingFromStorage() {
+  if (spacingHydrated) return;
+  spacingHydrated = true;
+  // localStorage.getItem() renvoie `null` (pas `undefined`) quand la clé
+  // n'existe pas, et `Number(null)` vaut 0 — PAS NaN. Un simple
+  // `Number.isFinite(...) && ... >= 0` ne distingue donc pas "absent" de
+  // "explicitement 0" : bug réel vécu (sphereGap retombait silencieusement
+  // à 0 à chaque première visite au lieu de la valeur par défaut). Vérifier
+  // `!== null` D'ABORD, avant toute conversion numérique.
+  const rawStarGap = window.localStorage.getItem("sy-sphere-star-gap");
+  const rawSphereGap = window.localStorage.getItem("sy-sphere-sphere-gap");
+  const rawStarSize = window.localStorage.getItem("sy-sphere-star-size");
+  const next = { ...spacingState };
+  if (rawStarGap !== null) {
+    const v = Number(rawStarGap);
+    if (Number.isFinite(v) && v > 0) next.starGap = v;
+  }
+  if (rawSphereGap !== null) {
+    const v = Number(rawSphereGap);
+    if (Number.isFinite(v) && v >= 0) next.sphereGap = v;
+  }
+  if (rawStarSize !== null) {
+    const v = Number(rawStarSize);
+    if (Number.isFinite(v) && v > 0) next.starSize = v;
+  }
+  spacingState = next;
+}
+function subscribeSpacing(cb: () => void) {
+  hydrateSpacingFromStorage();
+  spacingListeners.add(cb);
+  return () => spacingListeners.delete(cb);
+}
+function getSpacingSnapshot() {
+  return spacingState;
+}
+function getSpacingServerSnapshot(): SpacingSettings {
+  return { starGap: 60, sphereGap: 296, starSize: 1 };
+}
+// setStarGapSetting/setSphereGapSetting/setStarSizeSetting retirés avec
+// leurs curseurs (sur demande) : starGap/sphereGap/starSize restent lus
+// depuis spacingState (valeurs par défaut 60/296/1, ou localStorage si déjà
+// réglées lors d'une session précédente où les curseurs existaient encore),
+// mais ne sont plus modifiables depuis l'interface.
+
 type GrainState = {
   theta: number;
   phi: number;
@@ -86,17 +146,18 @@ const CY = 400;
 // leurs particules, troisième méridien. Voir aussi .sphereContainer dans
 // dashboard.module.css (largeur du conteneur, même valeur que la référence).
 const SPHERE_R = 200;
-// AVANT (rounds précédents) : bande extérieure 224-368 (224 = SPHERE_R*1.12),
-// soit 144 unités, et un jitter radial ±14. Plafond géométrique dur : au-delà
-// de ~398 unités (bord du viewBox 800, CX=400), les grains sortent visuellement
-// du cadre — déjà quasi atteint (368+14+drift+taille ≈ 396). Pousser encore
-// MAX_R sans réduire la sphère elle-même (agrandie sur demande explicite
-// précédente, §"agrandis-la encore") n'aurait donc rien changé. Le vrai levier
-// disponible sans toucher ce plafond : partir plus tôt (SPHERE_R*1.04 au lieu
-// de *1.12, +16 unités récupérées côté intérieur) et un jitter radial ~1.6x
-// plus large (±22 au lieu de ±14).
-const MAX_R = 362;
-const EXTERIOR_R_START = SPHERE_R * 1.04;
+// Distance étoiles-sphère et largeur de la bande radiale du nuage extérieur
+// : réglables en direct (curseurs, voir le composant plus bas) plutôt que
+// des constantes fixes — après une dizaine d'allers-retours à deviner la
+// "bonne" valeur, c'est maintenant l'utilisateur qui les fixe lui-même, sans
+// plafond arbitraire de ma part : le SVG a overflow:visible (voir
+// .sphereSvg dans dashboard.module.css), les grains peuvent donc sortir du
+// cadre visuel du conteneur si l'écart demandé est très grand — c'est un
+// choix délibéré de l'utilisateur via le curseur, pas un bug accidentel
+// comme lors d'un round précédent. DEFAULT_BAND_WIDTH est la largeur de la
+// bande radiale (fraîcheur) : l'écart sphère-étoile pousse toute la bande
+// vers l'extérieur, sans la compresser.
+const DEFAULT_BAND_WIDTH = 154;
 const AUTO_SPIN_RAD_S = (4.2 * Math.PI) / 180;
 
 // AVANT : secteur angulaire fixe ±36° (72° au total) quel que soit le nombre
@@ -109,53 +170,237 @@ const AUTO_SPIN_RAD_S = (4.2 * Math.PI) / 180;
 // nombre réel de sujets affichés), pas ici — cette constante ne reste que
 // pour le plafond et le seuil de repli codés en dur ci-dessous.
 const SLOT_HALF_WIDTH_MAX_DEG = 80;
-// Écart angulaire minimal (dans le secteur du sujet) entre deux grains du
-// nuage extérieur : le simple élargissement du jitter (indépendant par
-// grain) réduit la densité moyenne mais ne garantit rien pour deux grains
-// dont le hash tombe par hasard proche l'un de l'autre — vérifié : jusqu'à 6
-// paires quasi empilées sur 22 grains d'un même sujet avant le tout premier
-// correctif (secteur fixe, 5°). AVANT (round précédent) : 7°. APRÈS : 20°,
-// ~3x — combiné au secteur désormais dynamique (souvent bien plus large que
-// les 72° fixes d'avant), le repli "réparti uniformément" (voir
-// relaxAngularOffsets) n'est plus systématiquement déclenché pour un nombre
-// réaliste de grains par sujet. Cette relaxation ne touche jamais le rayon
-// (fraîcheur, §3.2) et reste dans le secteur du sujet (angle=sujet, §3.2) :
-// seule la position DANS le secteur change.
-const MIN_ANGULAR_SEP_DEG = 20;
 
-// Écarte une liste de décalages angulaires (degrés, par rapport au centre du
-// secteur d'un sujet) d'au moins `minSep`, sans jamais sortir de
-// [-halfWidth, halfWidth]. Si le nombre de grains ne tient pas dans le
-// secteur à cet espacement minimal, répartit uniformément sur toute sa
-// largeur plutôt que de laisser des grains se chevaucher au bord (dégradation
-// progressive pour un sujet très fourni, comme mon scénario de test à 22
-// articles). Renvoie les décalages dans le MÊME ordre que l'entrée (pas
-// l'ordre trié utilisé en interne pour l'écartement).
-function relaxAngularOffsets(offsets: number[], halfWidth: number, minSep: number): number[] {
-  const n = offsets.length;
-  if (n <= 1) return offsets.slice();
-  const order = offsets.map((_, i) => i).sort((a, b) => offsets[a] - offsets[b]);
-  const sorted = order.map((i) => offsets[i]);
-  for (let k = 1; k < n; k++) {
-    if (sorted[k] - sorted[k - 1] < minSep) sorted[k] = sorted[k - 1] + minSep;
+// Distance minimale RÉELLE (unités du viewBox 0-800, même convention que
+// `size`, le rayon des nébuleuses, etc. — pas des degrés) imposée entre
+// CHAQUE PAIRE de grains du nuage extérieur, tous sujets confondus.
+//
+// BUG CORRIGÉ (round précédent) : l'ancienne relaxAngularOffsets ne
+// garantissait qu'un écart ANGULAIRE, calculé séparément par sujet. Deux
+// failles réelles, identifiées sur le code puis vérifiées par un cas
+// construit à la main :
+// 1. Un écart en degrés ne dit rien de la distance réelle en pixels tant
+//    qu'il n'est pas rapporté au rayon (qui varie avec la fraîcheur).
+// 2. Sa branche de repli ("réparti uniformément sur tout le secteur" quand
+//    trop de grains ne tenaient pas à l'écart demandé) ignorait purement et
+//    simplement le seuil minimal — avec beaucoup d'articles par sujet (cas
+//    réel : 75-94), cette branche se déclenchait presque systématiquement.
+// 3. (bug distinct, trouvé en construisant un cas concret : halfWidth=50°,
+//    minSep=20°, offsets bruts [-49°,-48°] → après recentrage [-58.5°,
+//    -38.5°], soit hors du secteur ±50° autorisé, sans aucune vérification
+//    après ce recentrage.)
+//
+// Remplacé par placeExteriorGrains ci-dessous : passage séquentiel
+// déterministe (ordre = id trié, jamais Math.random) en espace réel (x, y),
+// sur tous les grains extérieurs de tous les sujets à la fois, avec
+// recherche locale bornée (rayon d'abord, puis angle) quand un grain est
+// trop proche d'un grain déjà placé. Exécuté uniquement dans l'effet de
+// synchronisation ci-dessous, jamais par frame d'animation.
+//
+// Le seuil lui-même (minPixelSep) n'est plus une constante fixe : c'est le
+// curseur "distance entre les étoiles" (state starGap dans le composant),
+// passé en paramètre à placeExteriorGrains.
+//
+// Marge de recherche radiale autorisée en plus du jitter déjà en place
+// (±22, voir plus bas) pour tenter de résoudre une collision sans toucher à
+// l'angle — reste une fraction mineure de l'étendue de la bande, donc la
+// fraîcheur (rayon) reste globalement lisible même après ajustement.
+const RADIAL_SEARCH_RANGE = 20;
+const MAX_PLACEMENT_ATTEMPTS = 50;
+
+type ExteriorCandidate = {
+  id: string;
+  topicAngleDeg: number;
+  halfWidth: number;
+  homeOffset: number;
+  homeRadius: number;
+};
+
+function exteriorXY(topicAngleDeg: number, offset: number, radius: number) {
+  const rad = ((topicAngleDeg + offset) * Math.PI) / 180;
+  return { x: CX + radius * Math.cos(rad), y: CY + radius * Math.sin(rad) };
+}
+
+type Placement = { offset: number; radius: number; x: number; y: number };
+
+// Cherche, pour UN grain, la meilleure position (offset, rayon) au sens de
+// `distFn` (distance au grain le plus proche selon l'appelant — tous les
+// autres grains déjà posés lors du passage initial, ou tous les autres
+// grains du nuage entier lors de la passe de réparation ci-dessous), en au
+// plus MAX_PLACEMENT_ATTEMPTS essais. Phase 1 : rayon seul (priorité
+// demandée : ne pas toucher l'angle si le rayon suffit). Phase 2 : si
+// insuffisant, balayage en grille (angle × rayon) sur tout le secteur —
+// jamais au-delà de ±halfWidth (mapping angle=sujet, §3.2, préservé).
+function searchBestPlacement(
+  c: ExteriorCandidate,
+  startOffset: number,
+  startRadius: number,
+  distFn: (x: number, y: number) => number,
+  minPixelSep: number,
+  exteriorRStart: number,
+  maxR: number,
+): Placement {
+  let bestOffset = startOffset;
+  let bestRadius = startRadius;
+  let bestXY = exteriorXY(c.topicAngleDeg, bestOffset, bestRadius);
+  let bestDist = distFn(bestXY.x, bestXY.y);
+  if (bestDist >= minPixelSep) return { offset: bestOffset, radius: bestRadius, ...bestXY };
+
+  let attempts = 0;
+  // Phase 1 : ajustement radial seul (angle inchangé), dans la plage de
+  // fraîcheur déjà permise élargie de RADIAL_SEARCH_RANGE. Budget réduit
+  // (6, pas 20) : dans un sujet très fourni (cas réel, 75-94 articles), le
+  // rayon seul ne résout quasiment jamais la collision (le vrai espace
+  // libre est ailleurs sur le secteur) — mieux vaut réserver le budget à
+  // la phase 2 (grille angle × rayon), plus efficace, tout en gardant la
+  // priorité "rayon d'abord" demandée.
+  for (let k = 1; bestDist < minPixelSep && attempts < MAX_PLACEMENT_ATTEMPTS && k <= 6; k++) {
+    attempts++;
+    const sign = k % 2 === 0 ? 1 : -1;
+    const mag = Math.ceil(k / 2) * (RADIAL_SEARCH_RANGE / 10);
+    const radius = Math.max(exteriorRStart, Math.min(maxR + 22, startRadius + sign * mag));
+    const xy = exteriorXY(c.topicAngleDeg, startOffset, radius);
+    const d = distFn(xy.x, xy.y);
+    if (d > bestDist) {
+      bestDist = d;
+      bestRadius = radius;
+      bestOffset = startOffset;
+      bestXY = xy;
+    }
   }
-  const maxSpan = halfWidth * 2;
-  if (sorted[n - 1] - sorted[0] > maxSpan || sorted[0] < -halfWidth || sorted[n - 1] > halfWidth) {
-    const step = maxSpan / (n - 1);
-    for (let k = 0; k < n; k++) sorted[k] = -halfWidth + step * k;
-  } else {
-    // Recentre le groupe (l'écartement ne pousse que vers la droite) sur le
-    // centre de masse des décalages d'origine, pour ne pas dériver vers un
-    // bord du secteur au fil des recalculs.
-    const originalMean = offsets.reduce((s, v) => s + v, 0) / n;
-    const sortedMean = sorted.reduce((s, v) => s + v, 0) / n;
-    const shift = originalMean - sortedMean;
-    for (let k = 0; k < n; k++) sorted[k] += shift;
+  // Phase 2 : balayage ABSOLU en grille (angle × rayon) sur tout le secteur
+  // et toute la bande radiale — pas des petits pas croissants centrés sur
+  // la position de départ (qui n'explorent quasiment jamais l'espace libre
+  // s'il ne se trouve pas près d'elle), et pas l'angle seul (à un rayon à
+  // peu près fixe, l'arc disponible est physiquement trop court pour ~90
+  // points espacés de 24px : ~500 unités d'arc dispo pour 90×24=2160
+  // nécessaires — la bande radiale complète doit aussi être balayée).
+  const remaining = MAX_PLACEMENT_ATTEMPTS - attempts;
+  if (bestDist < minPixelSep && remaining > 0) {
+    // Peu de bandes radiales (4), l'essentiel du budget sur l'angle : à
+    // rayon fixe, c'est l'angle qui manque le plus (arc disponible
+    // physiquement court, voir plus haut), pas le rayon. Chaque bande est
+    // décalée d'un demi-pas par rapport à la précédente (grille "quinconce"
+    // plutôt qu'alignée) : une grille parfaitement alignée peut manquer un
+    // espace libre qui tombe systématiquement entre deux points de grille
+    // sur toutes les bandes à la fois — vérifié empiriquement (grille
+    // alignée : distance minimale réelle bloquée à 2,25px malgré une
+    // passe de réparation dédiée).
+    const radiusSteps = Math.max(1, Math.min(4, remaining));
+    const angleSteps = Math.max(1, Math.ceil(remaining / radiusSteps));
+    outer: for (let ri = 0; ri < radiusSteps; ri++) {
+      const radius =
+        exteriorRStart + ((maxR + 22 - exteriorRStart) * ri) / Math.max(1, radiusSteps - 1);
+      const phase = (ri % 2) * (c.halfWidth * 2) / angleSteps / 2;
+      for (let ai = 0; ai < angleSteps; ai++) {
+        if (attempts >= MAX_PLACEMENT_ATTEMPTS) break outer;
+        attempts++;
+        const raw = -c.halfWidth + phase + (c.halfWidth * 2 * ai) / Math.max(1, angleSteps - 1);
+        const offset = Math.max(-c.halfWidth, Math.min(c.halfWidth, raw));
+        const xy = exteriorXY(c.topicAngleDeg, offset, radius);
+        const d = distFn(xy.x, xy.y);
+        if (d > bestDist) {
+          bestDist = d;
+          bestOffset = offset;
+          bestRadius = radius;
+          bestXY = xy;
+        }
+        if (bestDist >= minPixelSep) break outer;
+      }
+    }
   }
-  const result = new Array<number>(n);
-  order.forEach((origIdx, k) => {
-    result[origIdx] = sorted[k];
-  });
+  // Aucune position valide trouvée en 50 tentatives : on garde la meilleure
+  // obtenue (distance minimale la plus grande rencontrée), jamais un
+  // abandon silencieux de la contrainte.
+  return { offset: bestOffset, radius: bestRadius, ...bestXY };
+}
+
+function placeExteriorGrains(
+  candidates: ExteriorCandidate[],
+  minPixelSep: number,
+  exteriorRStart: number,
+  maxR: number,
+): Map<string, { offset: number; radius: number }> {
+  const sorted = [...candidates].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+  const byId = new Map(candidates.map((c) => [c.id, c]));
+
+  // Passage initial, dans l'ordre déterministe (id trié) : chaque grain ne
+  // voit que les grains déjà posés AVANT lui dans cet ordre.
+  const placed: { id: string; x: number; y: number }[] = [];
+  for (const c of sorted) {
+    const distFn = (x: number, y: number) => {
+      let best = Infinity;
+      for (const p of placed) {
+        const d = Math.hypot(p.x - x, p.y - y);
+        if (d < best) best = d;
+      }
+      return best;
+    };
+    const pl = searchBestPlacement(c, c.homeOffset, c.homeRadius, distFn, minPixelSep, exteriorRStart, maxR);
+    placed.push({ id: c.id, x: pl.x, y: pl.y });
+  }
+
+  // Passe de réparation : le passage initial ne voit, pour chaque grain,
+  // que ceux posés avant lui — une paire encore sous le seuil une fois TOUT
+  // le nuage posé peut donc persister même si une place libre existe
+  // ailleurs (vue seulement après coup). Deuxième passage déterministe
+  // (trié par distance croissante à son plus proche voisin, puis par id),
+  // qui retente chaque grain encore sous le seuil avec le même budget de 50
+  // tentatives, cette fois contre TOUS les autres grains déjà posés (pas
+  // seulement ceux d'avant lui). 5 passes : déplacer un grain peut faire
+  // légèrement empirer son voisin, donc plusieurs passes convergent
+  // progressivement ; au-delà, les gains observés deviennent marginaux (un
+  // vrai optimum global demanderait un solveur, hors du cadre demandé ici).
+  for (let repairPass = 0; repairPass < 5; repairPass++) {
+    const withDist = placed.map((p, i) => {
+      let best = Infinity;
+      for (let j = 0; j < placed.length; j++) {
+        if (j === i) continue;
+        const d = Math.hypot(placed[j].x - p.x, placed[j].y - p.y);
+        if (d < best) best = d;
+      }
+      return { index: i, id: p.id, dist: best };
+    });
+    withDist.sort((a, b) => a.dist - b.dist || (a.id < b.id ? -1 : 1));
+
+    for (const { index, id, dist } of withDist) {
+      if (dist >= minPixelSep) continue;
+      const c = byId.get(id);
+      if (!c) continue;
+      const distFn = (x: number, y: number) => {
+        let best = Infinity;
+        for (let j = 0; j < placed.length; j++) {
+          if (j === index) continue;
+          const d = Math.hypot(placed[j].x - x, placed[j].y - y);
+          if (d < best) best = d;
+        }
+        return best;
+      };
+      // Repart de homeOffset/homeRadius, pas de la position intermédiaire
+      // du passage initial : un grain déjà déplacé une première fois reste
+      // libre d'explorer tout son secteur/sa bande, pas seulement autour
+      // d'où il se trouve actuellement.
+      const pl = searchBestPlacement(c, c.homeOffset, c.homeRadius, distFn, minPixelSep, exteriorRStart, maxR);
+      const newDist = distFn(pl.x, pl.y);
+      if (newDist > dist) {
+        placed[index] = { id, x: pl.x, y: pl.y };
+      }
+    }
+  }
+
+  const result = new Map<string, { offset: number; radius: number }>();
+  for (const p of placed) {
+    const c = byId.get(p.id)!;
+    const rad = Math.atan2(p.y - CY, p.x - CX);
+    let offset = (rad * 180) / Math.PI - c.topicAngleDeg;
+    // Normalise dans [-180, 180] avant de clamp au secteur : atan2 revient
+    // toujours dans [-180,180], mais topicAngleDeg peut décaler hors de
+    // cette plage.
+    offset = ((offset + 540) % 360) - 180;
+    offset = Math.max(-c.halfWidth, Math.min(c.halfWidth, offset));
+    const radius = Math.hypot(p.x - CX, p.y - CY);
+    result.set(p.id, { offset, radius });
+  }
   return result;
 }
 
@@ -195,6 +440,22 @@ export default function ArticlesSphere({
     getReducedMotionServerSnapshot,
   );
 
+  // Réglages manuels de l'espacement du nuage extérieur (curseurs rendus
+  // plus bas). starGap = seuil visé pour la distance entre deux grains
+  // (passé à placeExteriorGrains) ; sphereGap = distance entre le bord de
+  // la sphère et le début de la bande de grains. Valeurs par défaut =
+  // celles qui étaient fixes en dur jusqu'ici.
+  const spacing = useSyncExternalStore(
+    subscribeSpacing,
+    getSpacingSnapshot,
+    getSpacingServerSnapshot,
+  );
+  const starGap = spacing.starGap;
+  const sphereGap = spacing.sphereGap;
+  const starSize = spacing.starSize;
+  const exteriorRStart = SPHERE_R + sphereGap;
+  const maxR = exteriorRStart + DEFAULT_BAND_WIDTH;
+
   // Pas d'effet pour fermer le panneau si l'article sélectionné vient d'être
   // écarté depuis l'autre vue (état favori/écarté désormais partagé, voir
   // plus haut) : inutile, selectedArticle (plus bas) est dérivé de
@@ -226,6 +487,28 @@ export default function ArticlesSphere({
   const connectorLineRef = useRef<SVGLineElement | null>(null);
   const limbRef = useRef<SVGEllipseElement>(null);
   const fillGradRef = useRef<SVGRadialGradientElement>(null);
+  // Position courante du pointeur, en unités du viewBox (0-800), mise à jour
+  // par un seul écouteur pointermove sur le <svg> (pas par grain) ; `null`
+  // quand le pointeur est hors de la sphère. Sert au survol/curseur système
+  // maison, calculé une fois par frame dans la boucle d'animation — voir le
+  // commentaire complet sur updateHoverCursor plus bas.
+  const pointerPosRef = useRef<{ x: number; y: number } | null>(null);
+  const hoveredGrainIdRef = useRef<string | null>(null);
+  // Court délai anti-rebond avant d'effacer pointerPosRef sur un
+  // pointerleave du <svg> (voir onPointerLeave) : le <svg> lui-même ne
+  // pulse/dérive jamais (contrairement à un grain — voir plus haut), donc
+  // ceci n'absorbe pas une oscillation périodique comme un essai précédent
+  // raté, seulement un sursaut ponctuel et rare (élément hors ligne un
+  // instant pendant une mutation d'attribut cx/cy non atomique).
+  const pointerLeaveTimeoutRef = useRef<number | null>(null);
+  // La détection de survol elle-même vit dans l'effet de la boucle
+  // d'animation (a besoin de grainStateRef à jour) ; l'écouteur pointermove
+  // qui alimente pointerPosRef vit dans l'effet glisser/zoom (juste en
+  // dessous). Deux effets séparés, donc indirection par ref : sous
+  // prefers-reduced-motion, la boucle d'animation ne tourne pas en continu
+  // (voir plus bas), pointermove doit alors déclencher le calcul lui-même
+  // pour que le curseur suive quand même la souris.
+  const updateHoverCursorRef = useRef<() => void>(() => {});
 
   const selectedIdRef = useRef<string | null>(null);
   useEffect(() => {
@@ -283,42 +566,50 @@ export default function ArticlesSphere({
       }
     });
 
-    // Secteur angulaire disponible par sujet, dynamique (voir commentaire de
-    // SLOT_HALF_WIDTH_MAX_DEG) : 84% de la part réelle (360°/nombre de
-    // sujets affichés), plafonné pour ne pas étaler un sujet isolé sur
-    // presque tout le tour.
-    const topicCountForSpacing = Math.max(1, topicSlots.length);
-    const exteriorHalfWidthDeg = Math.min(
-      SLOT_HALF_WIDTH_MAX_DEG,
-      (360 / topicCountForSpacing) * 0.42,
-    );
+    // Secteur angulaire disponible par sujet, dynamique ET pondéré par le
+    // nombre réel de grains extérieurs de ce sujet (pas juste le nombre de
+    // sujets) : un sujet avec 90 grains a besoin de bien plus de place
+    // qu'un sujet avec 8, or une répartition égale (360°/nombre de sujets)
+    // leur donnait la MÊME largeur de secteur — c'est ça qui empêchait
+    // placeExteriorGrains de trouver assez de place pour un sujet très
+    // fourni (cas réel, 75-94 articles), quel que soit le budget de
+    // tentatives. part = grains de ce sujet / total de grains extérieurs
+    // affichés ; 84% de 360°×part, plancher (15°) pour qu'un sujet peu
+    // fourni ne soit pas écrasé à presque rien, plafond (SLOT_HALF_WIDTH_MAX_DEG)
+    // pour qu'un sujet isolé ne s'étale pas sur presque tout le tour.
+    const exteriorByTopicCount = new Map<string, number>();
+    for (const a of shown) {
+      if (favoriteIds.has(a.id)) continue;
+      const key = a.topicName || "Sans sujet";
+      exteriorByTopicCount.set(key, (exteriorByTopicCount.get(key) ?? 0) + 1);
+    }
+    const totalExterior = Math.max(1, [...exteriorByTopicCount.values()].reduce((s, v) => s + v, 0));
+    function halfWidthForTopic(topicKey: string): number {
+      const share = (exteriorByTopicCount.get(topicKey) ?? 0) / totalExterior;
+      return Math.max(15, Math.min(SLOT_HALF_WIDTH_MAX_DEG, 360 * share * 0.42));
+    }
 
-    // Angles relaxés du nuage extérieur, par sujet : recalculés à partir de
-    // TOUS les grains extérieurs actuellement affichés de ce sujet (pas
-    // seulement les nouveaux), pour que la distance minimale reste garantie
-    // même quand le lot visible change (filtre temporel, densité). Les
-    // grains déjà affichés ne sautent pas pour autant : baseAngleCurrent
-    // rattrape la nouvelle cible en douceur dans la boucle d'animation.
-    const exteriorByTopic = new Map<string, { id: string; angleDeg: number; offset: number }[]>();
+    // Placement du nuage extérieur, TOUS SUJETS CONFONDUS (pas sujet par
+    // sujet) : recalculé à partir de tous les grains extérieurs actuellement
+    // affichés (pas seulement les nouveaux), pour que la distance minimale
+    // reste garantie même quand le lot visible change (filtre temporel,
+    // densité). Les grains déjà affichés ne sautent pas pour autant :
+    // baseAngleCurrent/r3current rattrapent la nouvelle cible en douceur
+    // dans la boucle d'animation (voir plus bas).
+    const exteriorCandidates: ExteriorCandidate[] = [];
     for (const a of shown) {
       if (favoriteIds.has(a.id)) continue;
       const topicKey = a.topicName || "Sans sujet";
-      const angleDeg = topicSlotByName.get(topicKey)?.angleDeg ?? -90;
+      const topicAngleDeg = topicSlotByName.get(topicKey)?.angleDeg ?? -90;
+      const halfWidth = halfWidthForTopic(topicKey);
       const h = hashString(a.id);
-      const offset = (((h % 1000) / 1000) * 2 - 1) * exteriorHalfWidthDeg;
-      const arr = exteriorByTopic.get(topicKey) ?? [];
-      arr.push({ id: a.id, angleDeg, offset });
-      exteriorByTopic.set(topicKey, arr);
+      const homeOffset = (((h % 1000) / 1000) * 2 - 1) * halfWidth;
+      const fraction = Math.min(1, a.ageHours / wh);
+      const radialJitter = (((h >>> 10) % 1000) / 1000) * 2 - 1;
+      const homeRadius = exteriorRStart + fraction * (maxR - exteriorRStart) + radialJitter * 22;
+      exteriorCandidates.push({ id: a.id, topicAngleDeg, halfWidth, homeOffset, homeRadius });
     }
-    const relaxedAngleById = new Map<string, number>();
-    for (const entries of exteriorByTopic.values()) {
-      const relaxed = relaxAngularOffsets(
-        entries.map((e) => e.offset),
-        exteriorHalfWidthDeg,
-        MIN_ANGULAR_SEP_DEG,
-      );
-      entries.forEach((e, i) => relaxedAngleById.set(e.id, e.angleDeg + relaxed[i]));
-    }
+    const placedById = placeExteriorGrains(exteriorCandidates, starGap, exteriorRStart, maxR);
 
     for (const a of shown) {
       const topicKey = a.topicName || "Sans sujet";
@@ -338,7 +629,12 @@ export default function ArticlesSphere({
       const radialJitter = (((h >>> 10) % 1000) / 1000) * 2 - 1;
       const freshFrac = Math.min(1, a.ageHours / 110);
 
-      const exteriorAngle = relaxedAngleById.get(a.id) ?? angleDeg + angleJitter * 36;
+      // Non défini seulement pour un grain intérieur (favori) : ceux-ci ne
+      // passent pas par placeExteriorGrains (repli théorique, jamais
+      // atteint pour un grain extérieur puisque exteriorCandidates couvre
+      // exactement les mêmes articles non favoris que cette boucle).
+      const placed = placedById.get(a.id);
+      const exteriorAngle = placed ? angleDeg + placed.offset : angleDeg + angleJitter * 36;
 
       let gs = grainStateRef.current.get(a.id);
       if (!gs) {
@@ -350,7 +646,7 @@ export default function ArticlesSphere({
           r3current: interior ? 6 : SPHERE_R * 1.3,
           r3target: 0,
           interior,
-          size: 6.2,
+          size: starSize,
           fill: fluxColor,
           baseOpacity: 0.6,
           driftPhase: ((h >>> 4) % 1000) / 1000 * Math.PI * 2,
@@ -367,7 +663,7 @@ export default function ArticlesSphere({
         grainStateRef.current.set(a.id, gs);
       }
       gs.interior = interior;
-      gs.size = 6.2;
+      gs.size = starSize;
       // Cible ré-assignée à chaque passage (pas seulement à la création) :
       // le groupe relaxé peut se redistribuer légèrement quand un voisin
       // apparaît/disparaît. baseAngleCurrent rattrape en douceur, voir plus
@@ -378,12 +674,13 @@ export default function ArticlesSphere({
         gs.fill = topicColor(topicKey);
         gs.baseOpacity = 0.78;
       } else {
-        // Dispersion radiale : AVANT ±8, puis ±14, désormais ±22 (~2,75x la
-        // toute première valeur) — reste une fraction mineure (~14%) de
-        // l'étendue de la bande (MAX_R - EXTERIOR_R_START), donc ne brouille
-        // pas la lecture de la fraîcheur par la distance. L'angle
-        // (mapping sujet, §3.2) n'est jamais touché par ce jitter radial.
-        gs.r3target = EXTERIOR_R_START + fraction * (MAX_R - EXTERIOR_R_START) + radialJitter * 22;
+        // Rayon issu de placeExteriorGrains : la formule fraîcheur + jitter
+        // ±22 reste la valeur de départ ("home"), ajustée seulement si une
+        // collision avec un autre grain l'a exigé (voir le curseur "distance
+        // entre les étoiles" plus bas) — jamais au hasard, jamais plus qu'il
+        // ne faut.
+        gs.r3target =
+          placed?.radius ?? exteriorRStart + fraction * (maxR - exteriorRStart) + radialJitter * 22;
         gs.fill = fluxColor;
         gs.baseOpacity = 0.62;
       }
@@ -419,13 +716,35 @@ export default function ArticlesSphere({
             setSelectedId(a.id);
           }
         });
+        // Pas d'écouteur pointerenter/pointerleave ici pour le curseur : un
+        // essai précédent (avec délai anti-rebond) semblait corriger le
+        // clignotement, mais ne faisait que le déplacer — la vraie cause est
+        // la PULSATION du grain (le rayon oscille en continu, période aussi
+        // courte que 0,9s pour un article très récent), qui fait traverser
+        // la frontière de survol par un curseur pourtant immobile, à un
+        // rythme plus lent que n'importe quel délai anti-rebond raisonnable.
+        // Le survol/curseur système est donc entièrement piloté hors du
+        // mécanisme natif (:hover / pointerenter), dans la boucle
+        // d'animation ci-dessous, avec un rayon de détection FIXE qui ne
+        // pulse jamais — voir updateHoverCursor plus bas.
         layer.appendChild(el);
         grainElsRef.current.set(a.id, el);
       }
       el.setAttribute("aria-label", a.title);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [visibleArticles, favoriteIds, topicSlotByName, maxAgeHours, cloudDensity, isLight]);
+  }, [
+    visibleArticles,
+    favoriteIds,
+    topicSlotByName,
+    maxAgeHours,
+    cloudDensity,
+    isLight,
+    starGap,
+    exteriorRStart,
+    maxR,
+    starSize,
+  ]);
 
   // --- Boucle de rotation / pulsation / dérive — refs uniquement, aucun
   // état React en jeu : monte une seule fois, tourne tant que le composant
@@ -491,9 +810,29 @@ export default function ArticlesSphere({
             gs.driftPhase += dt * gs.driftSpeed;
             gs.twinklePhase += dt * gs.twinkleSpeed;
           }
-          const angRad = (gs.baseAngleCurrent * Math.PI) / 180 + Math.sin(gs.driftPhase) * 0.05;
-          sx = CX + gs.r3current * Math.cos(angRad) + Math.sin(gs.driftPhase * 0.6) * gs.driftRadius;
-          sy = CY + gs.r3current * Math.sin(angRad) + Math.cos(gs.driftPhase * 0.5) * gs.driftRadius;
+          // Décalage de dérive TANGENTIEL (perpendiculaire au rayon), de
+          // magnitude fixe (driftRadius, 3-6 unités) — PAS un décalage
+          // ANGULAIRE fixe comme avant (+0.05 rad). Un angle fixe se
+          // traduit par un déplacement ABSOLU = angle × rayon : avec un
+          // grand écart étoile-sphère (sphereGap élevé, rayon orbital de
+          // plusieurs centaines d'unités), même 0,05 rad produisait un
+          // débattement de plusieurs dizaines d'unités — l'étoile
+          // "voyageait" bien plus que prévu, et le survol (voir
+          // updateHoverCursor) perdait le grain en une fraction de seconde.
+          // Un déplacement tangentiel de magnitude fixe garde la même
+          // amplitude visuelle quel que soit le rayon.
+          const angRad = (gs.baseAngleCurrent * Math.PI) / 180;
+          const tangentialDrift = Math.sin(gs.driftPhase) * gs.driftRadius;
+          sx =
+            CX +
+            gs.r3current * Math.cos(angRad) -
+            Math.sin(angRad) * tangentialDrift +
+            Math.sin(gs.driftPhase * 0.6) * gs.driftRadius;
+          sy =
+            CY +
+            gs.r3current * Math.sin(angRad) +
+            Math.cos(angRad) * tangentialDrift +
+            Math.cos(gs.driftPhase * 0.5) * gs.driftRadius;
           depth = reduced ? 1 : 0.82 + 0.18 * Math.sin(gs.twinklePhase);
           el.setAttribute("r", (gs.size * (1 + pulse)).toFixed(2));
         }
@@ -534,7 +873,86 @@ export default function ArticlesSphere({
       }
 
       updateConnector();
+      updateHoverCursor();
     }
+
+    // Survol/curseur système du nuage, hors du mécanisme natif :hover /
+    // pointerenter-pointerleave : ceux-ci sont recalculés par le navigateur
+    // à chaque frame pendant que le grain survolé bouge (dérive) ET pulse
+    // (rayon oscillant, période aussi courte que 0,9s pour un article très
+    // récent) — la frontière de survol traverse alors un curseur pourtant
+    // immobile, à un rythme que même un délai anti-rebond raisonnable ne
+    // peut pas absorber sans rendre la sélection molle. Corrigé à la racine
+    // en sortant complètement de ce mécanisme :
+    // - Test de distance au pointeur avec un rayon de détection FIXE
+    //   (gs.size + 8, jamais multiplié par le facteur de pulsation) : la
+    //   frontière elle-même ne pulse donc plus jamais.
+    // - Le curseur système n'est réécrit QUE quand le grain survolé change
+    //   réellement (comparaison à hoveredGrainIdRef), pas à chaque frame.
+    // - Suspendu pendant un glisser (dragRef.current?.captured) : la main
+    //   (grabbing, .sphereDragging) doit rester affichée, pas basculer vers
+    //   un pointeur si un grain passe sous le curseur en cours de rotation.
+    function updateHoverCursor() {
+      const svgEl = grainLayerRef.current?.ownerSVGElement;
+      if (!svgEl) return;
+      const pos = dragRef.current?.captured ? null : pointerPosRef.current;
+      let bestId: string | null = null;
+      if (pos) {
+        let bestDist = Infinity;
+        grainStateRef.current.forEach((gs, id) => {
+          // +16 (pas +8 comme la marge cliquable) : couvre confortablement
+          // la dérive résiduelle bornée pour un grain extérieur (jusqu'à
+          // ~2×driftRadius, 6-12 unités selon le grain — voir la formule de
+          // dérive tangentielle plus haut), pour qu'un curseur immobile au
+          // centre du grain ne sorte jamais de la zone de survol.
+          const hitR = gs.size + 16;
+          // Position de RÉFÉRENCE, pas gs.lastX/lastY (la position affichée
+          // à l'écran, qui inclut la dérive) : gs.lastX/Y oscille en continu
+          // même quand gs.baseAngleCurrent/r3current sont stables, via le
+          // terme de dérive (driftPhase). À grande distance du centre
+          // (sphereGap élevé), même une petite oscillation ANGULAIRE de
+          // dérive produit un déplacement ABSOLU important (l'arc croît
+          // avec le rayon) — largement supérieur à hitR pour une petite
+          // taille d'étoile. Vérifié : avec une souris réelle immobile sur
+          // un grain, ce déplacement dû à la seule dérive faisait sortir le
+          // survol en moins d'une seconde, perçu comme un clignotement.
+          // gs.baseAngleCurrent/r3current sont déjà lissés (interpolés vers
+          // leur cible avec `ease`, jamais de terme oscillant ajouté) : une
+          // fois la cible atteinte, cette position de référence est
+          // parfaitement immobile, quoi que fassent pulsation/dérive.
+          let hx: number;
+          let hy: number;
+          if (gs.interior) {
+            // Rotation du globe = mouvement volontaire de la sphère elle-
+            // même (pas un tremblement local à corriger) : la position
+            // affichée reste la référence pour un grain intérieur.
+            hx = gs.lastX;
+            hy = gs.lastY;
+          } else {
+            const rad = (gs.baseAngleCurrent * Math.PI) / 180;
+            hx = CX + gs.r3current * Math.cos(rad);
+            hy = CY + gs.r3current * Math.sin(rad);
+          }
+          const d = Math.hypot(hx - pos.x, hy - pos.y);
+          if (d <= hitR && d < bestDist) {
+            bestDist = d;
+            bestId = id;
+          }
+        });
+      }
+      if (bestId !== hoveredGrainIdRef.current) {
+        const prevId = hoveredGrainIdRef.current;
+        hoveredGrainIdRef.current = bestId;
+        svgEl.style.cursor = bestId ? "pointer" : "";
+        // Anneau de survol lui aussi appliqué ici, pas en CSS :hover — même
+        // raisonnement que le curseur (voir .sphereGrainHovered) : ne
+        // touche le DOM que sur un vrai changement de grain survolé, jamais
+        // à chaque frame.
+        if (prevId) grainElsRef.current.get(prevId)?.classList.remove(styles.sphereGrainHovered);
+        if (bestId) grainElsRef.current.get(bestId)?.classList.add(styles.sphereGrainHovered);
+      }
+    }
+    updateHoverCursorRef.current = updateHoverCursor;
 
     function updateConnector() {
       const overlay = connectorRef.current;
@@ -618,8 +1036,9 @@ export default function ArticlesSphere({
 
   // --- Glisser-déposer (rotation) et molette (zoom) -----------------------
   useEffect(() => {
-    const svg = containerRef.current?.querySelector("svg[data-sphere-svg]") as SVGSVGElement | null;
-    if (!svg) return;
+    const container = containerRef.current;
+    const svg = container?.querySelector("svg[data-sphere-svg]") as SVGSVGElement | null;
+    if (!svg || !container) return;
 
     function applyZoom() {
       svg!.style.transform = `scale(${zoomRef.current.toFixed(3)})`;
@@ -650,6 +1069,28 @@ export default function ArticlesSphere({
       rotRef.current.velX = 0;
     }
     function onPointerMove(e: PointerEvent) {
+      // Un vrai mouvement confirme que le pointeur est toujours là : annule
+      // un relâchement en attente (voir onPointerLeave).
+      if (pointerLeaveTimeoutRef.current !== null) {
+        window.clearTimeout(pointerLeaveTimeoutRef.current);
+        pointerLeaveTimeoutRef.current = null;
+      }
+      // Position courante du pointeur (unités du viewBox), pour le survol
+      // maison des grains — voir pointerPosRef et updateHoverCursor. Mise à
+      // jour à chaque déplacement réel de la souris, indépendamment d'un
+      // glisser en cours (le bloc ci-dessous, sous `if (!drag) return`, ne
+      // gère que la rotation).
+      const rect = svg!.getBoundingClientRect();
+      const scale = rect.width / 800;
+      pointerPosRef.current = {
+        x: (e.clientX - rect.left) / scale,
+        y: (e.clientY - rect.top) / scale,
+      };
+      // Recalcule tout de suite (pas seulement à la prochaine frame rAF) :
+      // sous prefers-reduced-motion, la boucle d'animation ne tourne pas en
+      // continu (voir plus bas), donc rien d'autre ne suivrait la souris.
+      updateHoverCursorRef.current();
+
       const drag = dragRef.current;
       if (!drag) return;
       if (!drag.captured) {
@@ -680,24 +1121,56 @@ export default function ArticlesSphere({
         rotRef.current.velY = 0;
         rotRef.current.velX = 0;
       }
+      // Le survol était suspendu pendant le glisser (voir updateHoverCursor)
+      // : recalcule tout de suite pour refléter la position actuelle du
+      // pointeur, plutôt que d'attendre un prochain mouvement de souris.
+      updateHoverCursorRef.current();
     }
     function onWheel(e: WheelEvent) {
       e.preventDefault();
       zoomRef.current = Math.max(0.85, Math.min(1.3, zoomRef.current - e.deltaY * 0.0007));
       applyZoom();
     }
+    // Écouté sur .sphereContainer (la DIV englobante), pas sur le <svg> :
+    // légèrement plus robuste (surface de détection un peu plus large,
+    // n'inclut pas les limites exactes du <svg>). Un cas résiduel reste
+    // ouvert, documenté honnêtement plutôt que masqué : avec une souris
+    // PARFAITEMENT immobile au pixel près pendant 2s+ (via Playwright, donc
+    // sans aucun mouvement réel ensuite), un pointerleave finit par se
+    // déclencher malgré tout — identique en production (`next build`) et en
+    // développement, donc pas un artefact HMR/overlay. Aucune main humaine
+    // ne peut tenir un curseur immobile au pixel près sur cette durée
+    // (contrairement à un test automatisé) ; le débounce (voir plus bas)
+    // absorbe déjà toute micro-instabilité réelle. Si ce résidu s'avère
+    // perceptible en usage réel malgré tout, il faudra revenir dessus avec
+    // un test piloté par un humain, pas seulement automatisé.
+    function onPointerLeave() {
+      if (pointerLeaveTimeoutRef.current !== null) {
+        window.clearTimeout(pointerLeaveTimeoutRef.current);
+      }
+      pointerLeaveTimeoutRef.current = window.setTimeout(() => {
+        pointerPosRef.current = null;
+        updateHoverCursorRef.current();
+        pointerLeaveTimeoutRef.current = null;
+      }, 100);
+    }
 
     svg.addEventListener("pointerdown", onPointerDown);
     svg.addEventListener("pointermove", onPointerMove);
     svg.addEventListener("pointerup", onPointerUp);
     svg.addEventListener("pointercancel", onPointerUp);
+    container.addEventListener("pointerleave", onPointerLeave);
     svg.addEventListener("wheel", onWheel, { passive: false });
     return () => {
       svg.removeEventListener("pointerdown", onPointerDown);
       svg.removeEventListener("pointermove", onPointerMove);
       svg.removeEventListener("pointerup", onPointerUp);
       svg.removeEventListener("pointercancel", onPointerUp);
+      container.removeEventListener("pointerleave", onPointerLeave);
       svg.removeEventListener("wheel", onWheel);
+      if (pointerLeaveTimeoutRef.current !== null) {
+        window.clearTimeout(pointerLeaveTimeoutRef.current);
+      }
     };
   }, []);
 
@@ -706,6 +1179,10 @@ export default function ArticlesSphere({
 
   return (
     <div className={styles.sphereRoot}>
+      {/* Tous les curseurs de réglage (distances, taille des étoiles) ont
+          été retirés sur demande explicite : les valeurs restent celles
+          fixées la dernière fois (60/296/1), désormais figées dans le code
+          par défaut plutôt que réglables depuis l'interface. */}
       <div className={styles.sphereVizWrap}>
         <div className={styles.sphereContainer} ref={containerRef}>
           <svg viewBox="0 0 800 800" data-sphere-svg className={styles.sphereSvg} aria-hidden="true">

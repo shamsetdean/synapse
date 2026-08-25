@@ -2398,11 +2398,29 @@
 }
 
 .sphereGrain {
-  cursor: pointer;
+  /* cursor: inherit, PAS pointer : le grain a role="button" (accessibilité),
+     ce qui déclenche à lui seul la règle de base Tailwind
+     `[role="button"] { cursor: pointer }`, indépendante de cette classe —
+     simplement ne pas déclarer cursor ici ne suffit donc pas à l'empêcher.
+     `inherit` neutralise les deux et laisse le <svg> parent (cursor: grab)
+     gouverner : le curseur système au survol d'un grain n'est plus du tout
+     piloté par CSS/:hover, voir .sphereGrainHovered ci-dessous. */
+  cursor: inherit;
   transition: stroke-width 0.2s ease;
 }
 
-.sphereGrain:hover {
+/* PAS de règle :hover ici (volontairement) : le grain bouge en continu
+   (dérive) ET pulse (rayon oscillant, période aussi courte que 0,9s pour un
+   article très récent). Le survol natif :hover du navigateur est recalculé
+   à chaque frame pendant que cette géométrie change, donc la frontière de
+   survol traverse un curseur pourtant immobile à un rythme trop rapide pour
+   rester stable — clignotement vécu, corrigé en sortant entièrement de ce
+   mécanisme. `.sphereGrainHovered` est appliquée à la place, de façon
+   impérative, uniquement quand le grain réellement survolé change (jamais à
+   chaque frame) — voir updateHoverCursor dans articles-sphere.tsx, qui
+   utilise un rayon de détection FIXE (jamais multiplié par le facteur de
+   pulsation) pour que la frontière elle-même ne pulse plus jamais. */
+.sphereGrainHovered {
   stroke: var(--ink);
   stroke-width: 1px;
 }
