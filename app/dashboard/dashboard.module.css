@@ -124,8 +124,12 @@
    sous le profil) : sélecteur combiné pour ne jamais affecter .viewToggle/
    .viewToggleBtn ailleurs (ils ne sont utilisés qu'à cet endroit du code
    actuellement, mais le combiné documente l'intention et protège tout
-   usage futur ailleurs). */
+   usage futur ailleurs). flex-direction: column (pas row comme la base
+   .topbarControls) : la référence validée montre 3 rangées EMPILÉES
+   (profil / Sphère-Liste / 24H-48H-TOUT), pas la bascule et le cadran
+   côte à côte sur une même rangée. */
 .topbarControls.topbarControlsCompact {
+  flex-direction: column;
   gap: var(--sy-space-6);
 }
 
