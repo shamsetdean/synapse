@@ -3,7 +3,6 @@
 import { createContext, useContext, useState, type ReactNode } from "react";
 import Link from "next/link";
 import NavRing, { type DashboardPageKey } from "./nav-ring";
-import AgeFilterDial from "./age-filter-dial";
 import styles from "./dashboard.module.css";
 
 // Les vues sont construites dans un composant serveur puis passées en
@@ -49,6 +48,16 @@ const ArticlesControlsContext = createContext<{
   // par sujet/fraîcheur/favoris, qui n'existe nulle part ailleurs.
   sphereLegend: string | null;
   setSphereLegend: (v: string | null) => void;
+  // Légende de sujets (points colorés Informatique/Football/IA...) : occupe
+  // désormais la place laissée par la bascule Sphère/Liste dans le header
+  // (demande explicite : le titre "Articles" + cette légende remplacent la
+  // bascule dans la topbar, qui redescend elle-même dans ArticlesView — voir
+  // le commentaire juste avant le rendu du header plus bas). Calculée dans
+  // ArticlesView (topicSlots dépend de ses propres données) puis poussée ici
+  // via useEffect, déjà résolue en couleur (thème clair/sombre tranché côté
+  // ArticlesView) : DashboardShell n'a pas besoin de refaire ce calcul.
+  topicLegend: { name: string; color: string }[] | null;
+  setTopicLegend: (v: { name: string; color: string }[] | null) => void;
 } | null>(null);
 
 export function useArticlesControls() {
@@ -82,11 +91,23 @@ export default function DashboardShell({
   const [view, setView] = useState<View>(defaultView);
   const [maxAgeHours, setMaxAgeHours] = useState<number | null>(72);
   const [sphereLegend, setSphereLegend] = useState<string | null>(null);
+  const [topicLegend, setTopicLegend] = useState<{ name: string; color: string }[] | null>(
+    null,
+  );
 
   return (
     <NavContext.Provider value={setActivePage}>
       <ArticlesControlsContext.Provider
-        value={{ view, setView, maxAgeHours, setMaxAgeHours, sphereLegend, setSphereLegend }}
+        value={{
+          view,
+          setView,
+          maxAgeHours,
+          setMaxAgeHours,
+          sphereLegend,
+          setSphereLegend,
+          topicLegend,
+          setTopicLegend,
+        }}
       >
         <header className={styles.topbar}>
           <div className={styles.topbarRow}>
@@ -95,39 +116,31 @@ export default function DashboardShell({
             <div className={styles.account}>{signOutButton}</div>
           </div>
 
-          {/* Seulement en vue Articles : sur les autres pages (Sujets,
-              Config), la bascule Sphère/Liste et le cadran de fraîcheur
-              n'ont pas de sens (rien à filtrer). */}
+          {/* Titre "Articles" + légende de sujets : prennent ici la place
+              qu'occupait la bascule Sphère/Liste + le cadran de fraîcheur
+              (demande explicite) — ceux-ci redescendent désormais dans
+              ArticlesView, à l'endroit précédemment occupé par ce titre.
+              Uniquement en vue Articles : sur les autres pages (Sujets,
+              Config), ni le titre ni la légende n'ont de sens ici. */}
           {activePage === "articles" && (
-            <div className={styles.topbarControls}>
-              <div
-                className={styles.viewToggle}
-                role="group"
-                aria-label="Vue Articles"
-              >
-                <button
-                  type="button"
-                  onClick={() => setView("sphere")}
-                  aria-pressed={view === "sphere"}
-                  className={`${styles.viewToggleBtn} ${
-                    view === "sphere" ? styles.viewToggleBtnActive : ""
-                  }`}
+            <div className={styles.topbarArticlesHead}>
+              <h2 className={styles.sectionH2}>Articles</h2>
+              {topicLegend && topicLegend.length > 0 && (
+                <div
+                  className={`${styles.sphereTopicLegend} ${styles.articlesTopBarLegend}`}
+                  aria-label="Sujets actifs"
                 >
-                  Sphère
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setView("list")}
-                  aria-pressed={view === "list"}
-                  className={`${styles.viewToggleBtn} ${
-                    view === "list" ? styles.viewToggleBtnActive : ""
-                  }`}
-                >
-                  Liste
-                </button>
-              </div>
-              {view === "sphere" && (
-                <AgeFilterDial value={maxAgeHours} onChange={setMaxAgeHours} />
+                  {topicLegend.map((slot) => (
+                    <span key={slot.name} className={styles.sphereTopicLegendItem}>
+                      <span
+                        className={styles.detailTopicDot}
+                        style={{ background: slot.color }}
+                        aria-hidden="true"
+                      />
+                      {slot.name}
+                    </span>
+                  ))}
+                </div>
               )}
             </div>
           )}

@@ -1,9 +1,10 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import type { FeedArticle } from "./article-feed";
 import ArticleFeed from "./article-feed";
 import ArticlesSphere from "./articles-sphere";
+import AgeFilterDial from "./age-filter-dial";
 import { useArticlesControls } from "./dashboard-shell";
 import { computeTopicSlots, useIsLightTheme } from "./topic-colors";
 import { useArticleActions } from "./use-article-actions";
@@ -25,13 +26,16 @@ type CloudDensity = "light" | "normal" | "dense";
 // tourner une boucle de rotation à 60 im/s en continu, qui n'a aucune raison
 // de consommer du CPU pendant que la liste est affichée.
 //
-// La bascule Sphère/Liste et le cadran de fraîcheur (24H/48H/72H/TOUT) ont
-// déménagé dans le bandeau du haut (dashboard-shell.tsx), au-dessus de sa
-// ligne de séparation (demande explicite) : `view` et `maxAgeHours` sont
-// donc lus depuis useArticlesControls (contexte partagé avec le header),
-// plus un état local ici. Le titre "Articles" + la légende de sujets
-// restent ici : ils dépendent des données propres à cette vue
-// (topicSlots), que le header n'a pas.
+// La bascule Sphère/Liste et le cadran de fraîcheur (24H/48H/72H/TOUT) sont
+// désormais rendus ICI (redescendus depuis dashboard-shell.tsx, demande
+// explicite d'inversion) : `view`/`setView`/`maxAgeHours`/`setMaxAgeHours`
+// restent lus depuis useArticlesControls (contexte partagé avec le header),
+// mais l'état lui-même continue de vivre dans DashboardShell — seul ancêtre
+// commun au header ET à cette vue, inchangé par cet échange. Le titre
+// "Articles" + la légende de sujets, eux, ont pris la place inverse : rendus
+// dans le header (dashboard-shell.tsx), qui n'a pas accès à topicSlots
+// (dépend des données propres à cette vue) — poussée là-bas via
+// setTopicLegend, sur le même principe que sphereLegend (articles-sphere.tsx).
 export default function ArticlesView({
   articles,
   favoritedIds,
@@ -49,7 +53,7 @@ export default function ArticlesView({
   visibleFields: VisibleFields;
   cloudDensity: CloudDensity;
 }) {
-  const { view, maxAgeHours } = useArticlesControls();
+  const { view, setView, maxAgeHours, setMaxAgeHours, setTopicLegend } = useArticlesControls();
   const actions = useArticleActions(favoritedIds);
   const isLight = useIsLightTheme();
 
@@ -69,28 +73,58 @@ export default function ArticlesView({
     return map;
   }, [topicSlots]);
 
+  // Légende de sujets (points colorés) : publiée vers le header (voir
+  // topicLegend/setTopicLegend, dashboard-shell.tsx), qui n'a pas accès à
+  // topicSlots. Résolue en couleur ICI (isLight tranché côté client, comme
+  // avant) plutôt que dans DashboardShell, qui n'a pas cette information.
+  // Seulement en vue Sphère, comme le comportement d'origine (la vue Liste
+  // affiche déjà les sujets en texte, pas besoin de la légende de couleurs).
+  // Nettoyée au démontage/changement de vue : sans ce nettoyage, une légende
+  // obsolète resterait affichée dans le header après un passage en Liste.
+  useEffect(() => {
+    if (view !== "sphere" || topicSlots.length === 0) {
+      setTopicLegend(null);
+      return;
+    }
+    setTopicLegend(
+      topicSlots.map((slot) => ({
+        name: slot.name,
+        color: isLight ? slot.colorLight : slot.colorDark,
+      })),
+    );
+    return () => setTopicLegend(null);
+  }, [view, topicSlots, isLight, setTopicLegend]);
+
   return (
     <div className={styles.articlesRoot}>
       <div className={styles.articlesTopBar}>
-        <div className={styles.articlesTopBarLeft}>
-          <h2 className={styles.sectionH2}>Articles</h2>
-          {view === "sphere" && topicSlots.length > 0 && (
-            <div
-              className={`${styles.sphereTopicLegend} ${styles.articlesTopBarLegend}`}
-              aria-label="Sujets actifs"
+        {/* Bascule Sphère/Liste + cadran de fraîcheur : occupent ici la
+            place laissée par le titre "Articles" + sa légende (demande
+            explicite d'inversion, voir dashboard-shell.tsx). */}
+        <div className={styles.topbarControls}>
+          <div className={styles.viewToggle} role="group" aria-label="Vue Articles">
+            <button
+              type="button"
+              onClick={() => setView("sphere")}
+              aria-pressed={view === "sphere"}
+              className={`${styles.viewToggleBtn} ${
+                view === "sphere" ? styles.viewToggleBtnActive : ""
+              }`}
             >
-              {topicSlots.map((slot) => (
-                <span key={slot.name} className={styles.sphereTopicLegendItem}>
-                  <span
-                    className={styles.detailTopicDot}
-                    style={{ background: isLight ? slot.colorLight : slot.colorDark }}
-                    aria-hidden="true"
-                  />
-                  {slot.name}
-                </span>
-              ))}
-            </div>
-          )}
+              Sphère
+            </button>
+            <button
+              type="button"
+              onClick={() => setView("list")}
+              aria-pressed={view === "list"}
+              className={`${styles.viewToggleBtn} ${
+                view === "list" ? styles.viewToggleBtnActive : ""
+              }`}
+            >
+              Liste
+            </button>
+          </div>
+          {view === "sphere" && <AgeFilterDial value={maxAgeHours} onChange={setMaxAgeHours} />}
         </div>
       </div>
 

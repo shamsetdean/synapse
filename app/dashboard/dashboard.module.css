@@ -106,10 +106,12 @@
   flex-wrap: wrap;
 }
 
-/* Deuxième rangée de la topbar : bascule Sphère/Liste + cadran de
-   fraîcheur, visible uniquement en vue Articles (voir dashboard-shell.tsx).
-   Reprend l'agencement de l'ancienne .articlesTopBarRight (retirée
-   d'articles-view.tsx), simplement déplacée d'un composant à l'autre. */
+/* Bascule Sphère/Liste + cadran de fraîcheur — utilisée ici par
+   articles-view.tsx (redescendue depuis la topbar, demande explicite
+   d'inversion avec le titre "Articles" + sa légende, qui occupent
+   maintenant .topbarArticlesHead dans dashboard-shell.tsx). Classe restée
+   dans ce fichier partagé (dashboard.module.css) : son nom décrit un style
+   de rangée de contrôles, pas un emplacement précis. */
 .topbarControls {
   display: flex;
   align-items: center;
@@ -759,7 +761,11 @@
   gap: var(--sy-space-10);
 }
 
-.articlesTopBarLeft {
+/* Titre "Articles" + légende de sujets, dans le header (dashboard-shell.tsx)
+   — anciennement .articlesTopBarLeft dans ArticlesView, avant l'échange de
+   position avec la bascule Sphère/Liste (demande explicite). Même
+   agencement, seul l'emplacement change. */
+.topbarArticlesHead {
   display: flex;
   flex-direction: column;
   gap: var(--sy-space-4);
