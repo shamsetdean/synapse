@@ -167,7 +167,7 @@ const AUTO_SPIN_RAD_S = (4.2 * Math.PI) / 180;
 // rayon effectivement dessiné (l'attribut `r`) : `gs.size` (la valeur
 // "taille des étoiles" configurée) reste inchangé pour tout le reste — zone
 // de survol, espacement (placeExteriorGrains) — rien d'autre n'est touché.
-const MIN_RENDERED_RADIUS = 2.5;
+const MIN_RENDERED_RADIUS = 6;
 
 // AVANT : secteur angulaire fixe ±36° (72° au total) quel que soit le nombre
 // de sujets réels — gâchait presque toute la place disponible avec 1-3
