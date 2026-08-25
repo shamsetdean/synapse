@@ -1086,18 +1086,12 @@ export default function ArticlesSphere({
         // à chaque frame.
         if (prevId) grainElsRef.current.get(prevId)?.classList.remove(styles.sphereGrainHovered);
         if (bestId) grainElsRef.current.get(bestId)?.classList.add(styles.sphereGrainHovered);
-        // Le panneau de détail s'ouvre désormais AU SURVOL (demande
-        // explicite), plus seulement au clic — le clic (voir son
-        // addEventListener plus haut) reste néanmoins nécessaire pour le
-        // tactile, qui n'a pas de survol. Uniquement quand bestId change
-        // vers un grain réel (jamais vers null) : en quittant tous les
-        // grains, le panneau reste ouvert sur le dernier consulté plutôt
-        // que de se refermer aussitôt — sans quoi il serait impossible de
-        // déplacer la souris du grain vers le panneau lui-même pour
-        // interagir avec (favori, fermeture...) sans qu'il disparaisse
-        // avant d'y arriver. Il se ferme via son propre bouton de
-        // fermeture (onClose) ou en survolant un AUTRE grain.
-        if (bestId) setSelectedId(bestId);
+        // Le panneau de détail s'ouvre ET se ferme désormais AU SURVOL
+        // (demande explicite) : ouvert quand bestId devient un grain réel,
+        // refermé quand la souris le quitte (bestId redevient null). Le
+        // clic (voir son addEventListener plus haut) reste néanmoins
+        // nécessaire pour le tactile, qui n'a pas de survol.
+        setSelectedId(bestId);
       }
     }
     updateHoverCursorRef.current = updateHoverCursor;
