@@ -301,7 +301,13 @@
   display: flex;
   flex-direction: column;
   gap: var(--sy-space-20);
-  max-width: 1400px;
+  /* Relevé (1400px -> 1800px, demande explicite) : c'était la vraie cause
+     des grands espaces vides constatés sur les côtés en grand écran — cette
+     limite s'appliquait à TOUT le contenu du dashboard (Articles, Sujets,
+     Config), pas seulement à la sphère, qui a sa propre limite séparée
+     (.sphereContainer, ajustée en conséquence juste plus bas dans ce
+     fichier). */
+  max-width: 1800px;
   width: 100%;
   margin: 0 auto;
   box-sizing: border-box;
@@ -2464,7 +2470,10 @@
    redondant avec un risque de régression mobile en prime. */
 .sphereContainer {
   position: relative;
-  width: clamp(320px, calc(100vh - 460px), 1400px);
+  /* Plafond relevé en cohérence avec .main (1400px -> 1800px, voir plus haut
+     dans ce fichier) : sans ça, .sphereContainer plafonnerait encore à
+     1400px alors que .main lui laisse désormais jusqu'à 1800px de large. */
+  width: clamp(320px, calc(100vh - 460px), 1800px);
   max-width: 100%;
   aspect-ratio: 1 / 1;
 }
