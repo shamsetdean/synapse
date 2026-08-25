@@ -3,6 +3,7 @@
 import { createContext, useContext, useState, type ReactNode } from "react";
 import Link from "next/link";
 import NavRing, { type DashboardPageKey } from "./nav-ring";
+import AgeFilterDial from "./age-filter-dial";
 import styles from "./dashboard.module.css";
 
 // Les vues sont construites dans un composant serveur puis passées en
@@ -110,24 +111,26 @@ export default function DashboardShell({
         }}
       >
         <header className={styles.topbar}>
-          <div className={styles.topbarRow}>
-            <div className={styles.brand}>{logo}</div>
+          <div className={styles.brand}>{logo}</div>
 
-            <div className={styles.account}>{signOutButton}</div>
-          </div>
-
-          {/* Titre "Articles" + légende de sujets : prennent ici la place
-              qu'occupait la bascule Sphère/Liste + le cadran de fraîcheur
-              (demande explicite) — ceux-ci redescendent désormais dans
-              ArticlesView, à l'endroit précédemment occupé par ce titre.
-              Uniquement en vue Articles : sur les autres pages (Sujets,
-              Config), ni le titre ni la légende n'ont de sens ici. */}
+          {/* Titre "Articles" + indicateur LIVE (déplacé depuis le logo,
+              voir page.tsx) + légende de sujets, empilée dessous : zone
+              centrale de la topbar, sur la MÊME rangée que le logo et le
+              profil — pas une rangée séparée (demande explicite, capture de
+              référence). Uniquement en vue Articles : sur les autres pages
+              (Sujets, Config), rien de tout cela n'a de sens ici. */}
           {activePage === "articles" && (
             <div className={styles.topbarArticlesHead}>
-              <h2 className={styles.sectionH2}>Articles</h2>
+              <div className={styles.topbarArticlesTitleRow}>
+                <h2 className={styles.sectionH2}>Articles</h2>
+                <span className={styles.liveIndicator}>
+                  <span className={styles.liveDot} aria-hidden="true" />
+                  LIVE
+                </span>
+              </div>
               {topicLegend && topicLegend.length > 0 && (
                 <div
-                  className={`${styles.sphereTopicLegend} ${styles.articlesTopBarLegend}`}
+                  className={`${styles.sphereTopicLegend} ${styles.topbarArticlesLegendCompact}`}
                   aria-label="Sujets actifs"
                 >
                   {topicLegend.map((slot) => (
@@ -144,6 +147,44 @@ export default function DashboardShell({
               )}
             </div>
           )}
+
+          {/* Zone 4 : profil en haut, bascule Sphère/Liste + cadran de
+              fraîcheur en dessous, en plus petit (demande explicite,
+              capture de référence validée) — toujours sur la même rangée
+              que le reste de la topbar, empilés verticalement dans cette
+              seule zone. */}
+          <div className={styles.topbarRight}>
+            <div className={styles.account}>{signOutButton}</div>
+            {activePage === "articles" && (
+              <div className={`${styles.topbarControls} ${styles.topbarControlsCompact}`}>
+                <div className={styles.viewToggle} role="group" aria-label="Vue Articles">
+                  <button
+                    type="button"
+                    onClick={() => setView("sphere")}
+                    aria-pressed={view === "sphere"}
+                    className={`${styles.viewToggleBtn} ${
+                      view === "sphere" ? styles.viewToggleBtnActive : ""
+                    }`}
+                  >
+                    Sphère
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setView("list")}
+                    aria-pressed={view === "list"}
+                    className={`${styles.viewToggleBtn} ${
+                      view === "list" ? styles.viewToggleBtnActive : ""
+                    }`}
+                  >
+                    Liste
+                  </button>
+                </div>
+                {view === "sphere" && (
+                  <AgeFilterDial value={maxAgeHours} onChange={setMaxAgeHours} />
+                )}
+              </div>
+            )}
+          </div>
         </header>
 
         {/* Dock flottant, position: fixed — n'a plus sa place dans la topbar

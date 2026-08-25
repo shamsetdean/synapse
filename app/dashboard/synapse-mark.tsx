@@ -29,11 +29,17 @@
 // l'extrémité du trait reste de l'ordre du pixel, perceptible comme un
 // frémissement organique plutôt qu'un décalage visible.
 
-export default function SynapseMark() {
+// AJOUT : taille paramétrable (size, défaut 60 = comportement inchangé
+// partout où le composant est déjà utilisé sans cette prop). Nécessaire
+// pour agrandir le logo dans le header (demande explicite) sans dupliquer
+// tout ce fichier — seul le viewBox interne (0 0 40 40) fixe les
+// proportions et les coordonnées d'animation, jamais touché ici : changer
+// width/height seul redimensionne le rendu final sans rien recalculer.
+export default function SynapseMark({ size = 60 }: { size?: number }) {
   return (
   <svg
-        width="60"
-        height="60" viewBox="0 0 40 40" style={{ flexShrink: 0, overflow: "visible" }}
+        width={size}
+        height={size} viewBox="0 0 40 40" style={{ flexShrink: 0, overflow: "visible" }}
         aria-hidden="true">
         <defs>
         <linearGradient id="logoGrad" x1="0" y1="0" x2="1" y2="1">

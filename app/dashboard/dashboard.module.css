@@ -64,17 +64,15 @@
 
 .topbar {
   display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  gap: 10px;
-  /* Le sélecteur de vue n'habite plus la topbar depuis la structure v2
-     (dock flottant, position: fixed en bas d'écran) : plus besoin de
-     réserve à droite ni de hauteur minimale calibrée pour un anneau.
-     Padding vertical resserré (16px -> 10px) : le bandeau compact demandé
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  /* Padding vertical resserré (16px -> 10px) : le bandeau compact demandé
      pour le haut de la page Articles (titre + légende + filtres, voir
      .articlesTopBar) tient sur une hauteur totale bien plus réduite quand le
      bandeau au-dessus (celui-ci) ne prend pas plus de place que nécessaire. */
-  padding: 7px 28px;
+  padding: 10px 28px;
   position: relative;
   border-bottom: 1px solid var(--line);
   position: sticky;
@@ -91,33 +89,54 @@
   box-sizing: border-box;
 }
 
-/* Rangée logo/profil : c'était le layout de .topbar avant que la bascule
-   Sphère/Liste et le cadran de fraîcheur n'y soient ajoutés en dessous
-   (demande explicite : ces contrôles doivent apparaître sous le profil,
-   au-dessus de la ligne de séparation de .topbar — donc DANS la topbar,
-   pas dans le bandeau d'ArticlesView plus bas). .topbar est passé en
-   colonne pour empiler les deux rangées ; cette classe porte l'ancien
-   agencement horizontal (logo à gauche, profil à droite). */
-.topbarRow {
+/* Zone centrale de la topbar (titre "Articles" + indicateur LIVE + légende
+   de sujets), sur la MÊME rangée que le logo et le profil — pas une rangée
+   séparée en dessous (demande explicite, capture de référence). */
+.topbarArticlesTitleRow {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--sy-space-8);
 }
 
-/* Bascule Sphère/Liste + cadran de fraîcheur — utilisée ici par
-   articles-view.tsx (redescendue depuis la topbar, demande explicite
-   d'inversion avec le titre "Articles" + sa légende, qui occupent
-   maintenant .topbarArticlesHead dans dashboard-shell.tsx). Classe restée
-   dans ce fichier partagé (dashboard.module.css) : son nom décrit un style
-   de rangée de contrôles, pas un emplacement précis. */
+/* Bascule Sphère/Liste + cadran de fraîcheur — sur la même rangée que le
+   logo et le profil (demande explicite), regroupée avec .account dans
+   .topbarRight juste en dessous. */
 .topbarControls {
   display: flex;
   align-items: center;
-  justify-content: center;
   gap: var(--sy-space-10);
   flex-wrap: wrap;
+}
+
+/* Regroupe la bascule/filtres et le profil à droite de la topbar, sur la
+   même rangée que le logo et le titre "Articles" (demande explicite). */
+/* Zone 4 : profil en haut, bascule Sphère/Liste + cadran de fraîcheur en
+   dessous, en plus petit (demande explicite, capture de référence
+   validée) — empilés verticalement, plus côte à côte. */
+.topbarRight {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sy-space-8);
+}
+
+/* Variante réduite de .topbarControls, utilisée uniquement ici (zone 4,
+   sous le profil) : sélecteur combiné pour ne jamais affecter .viewToggle/
+   .viewToggleBtn ailleurs (ils ne sont utilisés qu'à cet endroit du code
+   actuellement, mais le combiné documente l'intention et protège tout
+   usage futur ailleurs). */
+.topbarControls.topbarControlsCompact {
+  gap: var(--sy-space-6);
+}
+
+.topbarControlsCompact .viewToggle {
+  padding: 2px;
+  gap: 2px;
+}
+
+.topbarControlsCompact .viewToggleBtn {
+  padding: 3px 9px;
+  font-size: 9px;
 }
 
 .topbarLeft {
@@ -761,23 +780,47 @@
   gap: var(--sy-space-10);
 }
 
-/* Titre "Articles" + légende de sujets, dans le header (dashboard-shell.tsx)
-   — anciennement .articlesTopBarLeft dans ArticlesView, avant l'échange de
-   position avec la bascule Sphère/Liste (demande explicite). Même
-   agencement, seul l'emplacement change. */
+/* Titre "Articles" + indicateur LIVE + légende de sujets, dans le header
+   (dashboard-shell.tsx) — occupe désormais une zone centrale plus large
+   (fusion des anciennes zones 2 et 3, demande explicite). */
 .topbarArticlesHead {
   display: flex;
   flex-direction: column;
-  gap: var(--sy-space-4);
+  /* Sans ceci, les enfants flex en colonne s'étirent par défaut sur toute
+     la largeur du bandeau — la légende de sujets (.sphereTopicLegend,
+     justify-content: center) se retrouvait alors centrée sur TOUTE cette
+     largeur au lieu de coller au texte "Articles" juste au-dessus (bug
+     observé : légende repoussée loin à droite). align-items: flex-start
+     ramène chaque enfant à sa largeur de contenu réelle : centrer un bloc
+     qui n'a plus de largeur superflue n'a alors plus aucun effet visible. */
+  align-items: flex-start;
+  gap: var(--sy-space-6);
   min-width: 0;
+  flex: 1 1 auto;
 }
 
 /* .sphereTopicLegend centrait au-dessus de la sphère à l'origine ; la
-   légende a déménagé sous le titre (articles-view.tsx) — alignée à gauche,
-   sans marge basse propre à son ancienne position. */
-.articlesTopBarLegend {
+   légende vit maintenant dans le header, sous "Articles ● LIVE" (demande
+   explicite). Réduite et forcée sur une seule ligne (white-space: nowrap +
+   gap resserré) pour ne jamais déborder de cette zone, plus étroite qu'au
+   centre de la page — voir demande explicite "réduis... pour que ça reste
+   sans déborder". Sélecteur combiné (deux classes), pas juste
+   .topbarArticlesLegendCompact seule : une spécificité égale à
+   .sphereTopicLegend ferait dépendre le résultat de l'ORDRE des règles dans
+   ce fichier (fragile, piège classique) plutôt que d'une garantie explicite
+   que ces réglages l'emportent toujours sur ceux de .sphereTopicLegend. */
+.sphereTopicLegend.topbarArticlesLegendCompact {
   justify-content: flex-start;
+  flex-wrap: nowrap;
+  white-space: nowrap;
   margin-bottom: 0;
+  gap: var(--sy-space-4) 10px;
+  font-size: 9px;
+}
+
+.topbarArticlesLegendCompact .sphereTopicLegendItem {
+  font-size: 9px;
+  gap: 4px;
 }
 
 .articleGrid {
@@ -1355,7 +1398,7 @@
 .brand {
   display: flex;
   align-items: center;
-  gap: var(--sy-space-12);
+  gap: var(--sy-space-16);
 }
 
 /* ÉCART VOLONTAIRE demandé : la charte aligne le nom et le badge sur une
@@ -1364,23 +1407,25 @@
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: var(--sy-space-4);
+  gap: var(--sy-space-6);
 }
 
+/* Agrandis (demande explicite, zone 1) : 19px -> 24px pour le nom, le
+   sigle lui-même passe à 76px via la prop size de SynapseMark (page.tsx). */
 .brandName {
   font-family: var(--font-display);
   font-weight: var(--sy-weight-bold);
-  font-size: var(--sy-size-19);
+  font-size: 24px;
   letter-spacing: var(--sy-tracking-tight);
 }
 
 .brandBadge {
   font-family: var(--font-mono);
-  font-size: var(--sy-size-10);
+  font-size: var(--sy-size-11);
   color: var(--ink-dim);
   border: var(--sy-border-width) solid var(--line);
   border-radius: var(--sy-radius-20);
-  padding: var(--sy-space-3) 9px;
+  padding: 5px 11px;
   letter-spacing: var(--sy-tracking-wide);
   white-space: nowrap;
 }

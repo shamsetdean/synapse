@@ -212,24 +212,20 @@ export default async function DashboardPage() {
     });
 
   // Bloc d'identité de la charte : sigle animé, nom en capitales, badge.
-  // ÉCARTS VOLONTAIRES demandés : le badge est placé sous le nom plutôt qu'à
-  // côté, et l'adresse de courriel passe sous le bouton de déconnexion.
+  // ÉCART VOLONTAIRE demandé : le badge est placé sous le nom plutôt qu'à
+  // côté.
   //
-  // Indicateur LIVE (structure v2, section 3) : purement décoratif, même
-  // registre que le "Veille en temps réel" de la page d'accueil — pas un
-  // état de connexion réel, donc le dot reste aria-hidden et c'est le texte
-  // "LIVE" qui porte le sens pour les lecteurs d'écran.
+  // L'indicateur LIVE (structure v2, section 3) n'est plus ici : déplacé à
+  // côté du titre "Articles" (demande explicite, voir dashboard-shell.tsx),
+  // qui est l'endroit qu'il illustre vraiment (le flux d'articles est ce qui
+  // est "en direct", pas la marque elle-même).
   const logo = (
     <>
-      <SynapseMark />
+      <SynapseMark size={76} />
       <div className={styles.brandText}>
         <div className={styles.brandName}>SYNAPSE</div>
         <div className={styles.brandBadge}>VEILLE INTELLIGENTE</div>
       </div>
-      <span className={styles.liveIndicator}>
-        <span className={styles.liveDot} aria-hidden="true" />
-        LIVE
-      </span>
     </>
   );
 
