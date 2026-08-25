@@ -2448,11 +2448,23 @@
    avant le dock) plutôt que les valeurs mesurées brutes :
    - 370px en haut (326px mesurés + ~44px de marge)
    - 90px en bas (56,5px mesurés + ~34px de marge)
-   clamp() garde un plancher lisible (320px) même sur une fenêtre très basse,
-   et le plafond existant (760px) pour les grands écrans. */
+   clamp() garde un plancher lisible (320px) même sur une fenêtre très basse.
+   AJOUT (demande explicite, gros espaces vides constatés sur les côtés en
+   grand écran) : seul le PLAFOND change (760px -> 1400px), la formule du
+   milieu (100vh - 460px) reste identique, jamais touchée.
+   ÉCART VOLONTAIREMENT ÉVITÉ : ajouter aussi un min() avec un terme basé sur
+   100vw semblait pertinent pour ne pas dépendre QUE de la hauteur, mais
+   testé et rejeté : sur un smartphone (ex. 390×844), 100vh-460=384px (déjà
+   au-dessus du plancher, donc utilisé tel quel), alors qu'un terme du type
+   100vw-160px y vaudrait 230px — plus petit que le plancher (320px), donc
+   le résultat final aurait RÉGRESSÉ (384px -> 320px), à l'exact opposé du
+   travail fait par ailleurs sur la taille des points. `max-width: 100%`
+   juste en dessous protège déjà contre tout débordement horizontal réel :
+   un terme vw n'était donc pas nécessaire pour la sécurité, seulement
+   redondant avec un risque de régression mobile en prime. */
 .sphereContainer {
   position: relative;
-  width: clamp(320px, calc(100vh - 460px), 760px);
+  width: clamp(320px, calc(100vh - 460px), 1400px);
   max-width: 100%;
   aspect-ratio: 1 / 1;
 }
